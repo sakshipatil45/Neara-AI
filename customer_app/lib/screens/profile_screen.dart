@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+gayatri
+import 'edit_profile_screen.dart';
+import 'wallet_screen.dart';
+import 'notifications_screen.dart';
+import 'emergency_contacts_screen.dart';
+
 import '../theme/app_theme.dart';
+main
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -217,7 +224,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.edit_outlined,
                       title: 'Edit Profile',
                       value: 'Update your personal information',
-                      onTap: () {},
+                      onTap: () async {
+                        final updated = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                EditProfileScreen(user: _user!),
+                          ),
+                        );
+                        if (updated == true) {
+                          _loadUserData();
+                        }
+                      },
                       showArrow: true,
                     ),
                   ]),
@@ -229,7 +247,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.account_balance_wallet_outlined,
                       title: 'Wallet',
                       value: 'Check balance and payment history',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WalletScreen(),
+                          ),
+                        );
+                      },
                       showArrow: true,
                     ),
                   ]),
@@ -241,7 +266,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.notifications_none_outlined,
                       title: 'Notifications',
                       value: 'Manage your alert preferences',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationsScreen(),
+                          ),
+                        );
+                      },
                       showArrow: true,
                     ),
                   ]),
@@ -253,7 +285,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.contact_emergency_outlined,
                       title: 'Emergency Contacts',
                       value: 'Manage your safety contacts',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const EmergencyContactsScreen(),
+                          ),
+                        );
+                      },
                       showArrow: true,
                     ),
                   ]),
