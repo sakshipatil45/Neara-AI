@@ -101,6 +101,3 @@ This project follows clean architecture principles with feature-based module org
 
 Private Repository - All Rights Reserved
 
----
-
-*Built for connecting communities through technology* 🔗
