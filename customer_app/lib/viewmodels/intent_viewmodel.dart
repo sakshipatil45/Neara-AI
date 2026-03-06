@@ -17,7 +17,7 @@ class IntentListening extends IntentState {
 class IntentProcessing extends IntentState {}
 
 class IntentSuccess extends IntentState {
-  final ServiceIntentModel intent;
+  final EmergencyInterpretation intent;
   IntentSuccess(this.intent);
 }
 

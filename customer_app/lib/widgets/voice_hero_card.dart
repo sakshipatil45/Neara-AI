@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../viewmodels/intent_viewmodel.dart';
-import '../screens/intent_confirmation_screen.dart';
+import '../screens/intent_processing_screen.dart';
+import '../screens/intent_summary_screen.dart';
 
 class VoiceHeroCard extends ConsumerStatefulWidget {
   const VoiceHeroCard({super.key});
@@ -13,6 +15,7 @@ class VoiceHeroCard extends ConsumerStatefulWidget {
 class _VoiceHeroCardState extends ConsumerState<VoiceHeroCard> with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  bool _processingNavigated = false;
 
   @override
   void initState() {
@@ -24,6 +27,16 @@ class _VoiceHeroCardState extends ConsumerState<VoiceHeroCard> with SingleTicker
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+    
+    // Proactively request permission when card loads
+    _requestPermissionProactively();
+  }
+
+  Future<void> _requestPermissionProactively() async {
+    final status = await Permission.microphone.status;
+    if (status.isDenied) {
+      await Permission.microphone.request();
+    }
   }
 
   @override
@@ -36,33 +49,56 @@ class _VoiceHeroCardState extends ConsumerState<VoiceHeroCard> with SingleTicker
     ref.listen<IntentState>(intentViewModelProvider, (previous, next) {
       if (next is IntentListening) {
         _pulseController.repeat(reverse: true);
+        _processingNavigated = false;
       } else {
         _pulseController.stop();
         _pulseController.reset();
       }
 
+      if (next is IntentProcessing && !_processingNavigated) {
+        _processingNavigated = true;
+        // Navigate to animated processing screen
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const IntentProcessingScreen(),
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+        );
+      }
+
       if (next is IntentError) {
+        // Pop processing screen if open
+        if (_processingNavigated) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          _processingNavigated = false;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.message),
             backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
         ref.read(intentViewModelProvider.notifier).reset();
       } else if (next is IntentSuccess) {
-        // Show confirmation bottom sheet or screen
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) => IntentConfirmationScreen(intent: next.intent),
-        ).then((_) {
-          // Reset when dismissed
-          ref.read(intentViewModelProvider.notifier).reset();
-        });
+        // Replace processing screen with full-screen summary
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => IntentSummaryScreen(intent: next.intent),
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+        );
+        _processingNavigated = false;
+        ref.read(intentViewModelProvider.notifier).reset();
       }
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
