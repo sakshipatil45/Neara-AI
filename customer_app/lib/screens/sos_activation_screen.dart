@@ -5,18 +5,23 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-// ─── Mock contacts (same list as EmergencyPage) ───────────────────────────────
+import '../services/auth_service.dart';
+import '../services/location_service.dart';
+import '../services/sos_emergency_service.dart';
+
+// ─── Mock contacts (name, relation, phone) ────────────────────────────────────
 
 class _Contact {
   final String name;
   final String relation;
-  const _Contact(this.name, this.relation);
+  final String phone;
+  const _Contact(this.name, this.relation, this.phone);
 }
 
 const _contacts = [
-  _Contact('Mom', 'Mother'),
-  _Contact('Rohit Kumar', 'Friend'),
-  _Contact('Sneha Gupta', 'Sister'),
+  _Contact('Mom', 'Mother', '9876543210'),
+  _Contact('Rohit Kumar', 'Friend', '9123456780'),
+  _Contact('Sneha Gupta', 'Sister', '9988776655'),
 ];
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
@@ -51,11 +56,21 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
   String _finalWords = '';
   bool _isListening = false;
 
+  // AI / SMS state
+  String _aiSummary = '';
+  bool _isSummarizing = false;
+  String _locationLink = 'https://maps.google.com/?q=0,0';
+  String _customerName = 'User';
+
+  // Services
+  final _sosService = SosEmergencyService();
+  final _authService = AuthService();
+
   // Count ring animation
   late AnimationController _ringController;
   late Animation<double> _ringAnimation;
 
-  // Pulse animation (activated phase)
+  // Pulse animation (activated / listening phase)
   late AnimationController _pulseController;
 
   @override
@@ -76,6 +91,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     );
 
     HapticFeedback.heavyImpact();
+    _fetchUserName();
     _startCountdown();
     _initSpeech();
   }
@@ -87,6 +103,17 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     _pulseController.dispose();
     if (_isListening) _speech.stop();
     super.dispose();
+  }
+
+  // ── Fetch customer name ──────────────────────────────────────────────────
+
+  Future<void> _fetchUserName() async {
+    final user = await _authService.getCurrentUserData();
+    if (mounted && user != null && user.name.isNotEmpty) {
+      setState(() {
+        _customerName = user.name.split(' ').first; // First name only
+      });
+    }
   }
 
   // ── Speech init ─────────────────────────────────────────────────────────────
@@ -170,27 +197,54 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     final words = _finalWords.isNotEmpty ? _finalWords : _liveWords;
     setState(() {
       _isListening = false;
-      _phase = _SosPhase.summarized;
       _finalWords = words;
     });
     _pulseController.stop();
+    // Trigger AI + GPS + SMS
+    await _processAndSend();
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  // ── AI + GPS + SMS pipeline ─────────────────────────────────────────────────
 
-  String get _emergencySummary {
-    if (_finalWords.isEmpty) return 'Emergency alert triggered. User needs immediate help.';
-    final lower = _finalWords.toLowerCase();
-    if (lower.contains('fire')) return 'Emergency Alert: Fire detected. User needs help.';
-    if (lower.contains('ambulance') || lower.contains('medical')) {
-      return 'Emergency Alert: Medical emergency. Ambulance required.';
+  Future<void> _processAndSend() async {
+    setState(() {
+      _phase = _SosPhase.summarized;
+      _isSummarizing = true;
+    });
+
+    // 1. Get live GPS location
+    try {
+      final position = await LocationService.instance
+          .getCurrentPosition(forceRefresh: true);
+      if (position != null) {
+        _locationLink =
+            'https://maps.google.com/?q=${position.latitude},${position.longitude}';
+      }
+    } catch (_) {
+      // Keep default link if GPS fails
     }
-    if (lower.contains('accident')) return 'Emergency Alert: Accident reported. Immediate help needed.';
-    return 'Emergency Alert: $_finalWords';
+
+    // 2. AI summarize
+    final summary = await _sosService.summarize(
+      transcript: _finalWords,
+      customerName: _customerName,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _aiSummary = summary;
+      _isSummarizing = false;
+    });
+
+    // 3. Send SMS to all emergency contacts
+    await _sosService.sendSmsToContacts(
+      summary: summary,
+      locationLink: _locationLink,
+      phones: _contacts.map((c) => c.phone).toList(),
+    );
   }
 
-  String get _locationLink =>
-      'https://maps.google.com/?q=18.516726,73.856255'; // mock coords
+  // ── Cancel ──────────────────────────────────────────────────────────────────
 
   void _cancelSOS() {
     _timer?.cancel();
@@ -291,7 +345,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     if (_phase == _SosPhase.countdown) {
       return AnimatedBuilder(
         animation: _ringAnimation,
-        builder: (_, _) {
+        builder: (_, _a) {
           return SizedBox(
             width: 180,
             height: 180,
@@ -389,6 +443,15 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
               children: [
                 if (_phase == _SosPhase.listening)
                   const Icon(Icons.mic, color: Colors.white, size: 32)
+                else if (_phase == _SosPhase.summarized && _isSummarizing)
+                  const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
                 else
                   const Icon(Icons.warning_amber_rounded,
                       color: Colors.white, size: 32),
@@ -419,7 +482,8 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     switch (_phase) {
       case _SosPhase.countdown:
         headline = 'Sending SOS in $_countdown seconds...';
-        subtitle = 'Your live location is being shared\nwith emergency contacts.';
+        subtitle =
+            'Your live location is being shared\nwith emergency contacts.';
       case _SosPhase.activated:
         headline = '🚨 SOS Activated!';
         subtitle = 'Connecting to emergency contacts...';
@@ -427,8 +491,10 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
         headline = '🎙️ Listening...';
         subtitle = 'Speak your emergency message clearly.';
       case _SosPhase.summarized:
-        headline = '✅ Message Ready';
-        subtitle = 'Emergency summary prepared for contacts.';
+        headline = _isSummarizing ? '⏳ Generating Summary...' : '✅ Message Ready';
+        subtitle = _isSummarizing
+            ? 'AI is processing your message...'
+            : 'Emergency summary sent to contacts.';
     }
 
     return Column(
@@ -493,15 +559,14 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
               GestureDetector(
                 onTap: _stopListening,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     color: _kRed,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text('Stop',
-                      style:
-                          TextStyle(color: Colors.white, fontSize: 12)),
+                      style: TextStyle(color: Colors.white, fontSize: 12)),
                 ),
               ),
             ],
@@ -515,9 +580,8 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
               color: _liveWords.isEmpty ? Colors.white38 : Colors.white,
               fontSize: 14,
               height: 1.5,
-              fontStyle: _liveWords.isEmpty
-                  ? FontStyle.italic
-                  : FontStyle.normal,
+              fontStyle:
+                  _liveWords.isEmpty ? FontStyle.italic : FontStyle.normal,
             ),
           ),
         ],
@@ -530,7 +594,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
   Widget _buildSummaryCard() {
     return Column(
       children: [
-        // Emergency text
+        // Emergency summary
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -555,12 +619,25 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                _emergencySummary,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 14, height: 1.5),
-              ),
+              const SizedBox(height: 10),
+              if (_isSummarizing)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: CircularProgressIndicator(
+                      color: _kRed,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                )
+              else
+                Text(
+                  _aiSummary.isEmpty
+                      ? '🚨 Emergency Alert\n\n$_customerName has triggered an emergency SOS.'
+                      : _aiSummary,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 14, height: 1.6),
+                ),
             ],
           ),
         ),
@@ -601,6 +678,31 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
             ],
           ),
         ),
+        // SMS sent confirmation
+        if (!_isSummarizing) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.check_circle_outline,
+                    color: Colors.green, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'SMS alert sent to emergency contacts',
+                  style: TextStyle(color: Colors.green, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -626,7 +728,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
   }
 }
 
-// ─── SOS Contact Row ──────────────────────────────────────────────────────────
+// ─── SOS Contact Row (no call button) ─────────────────────────────────────────
 
 class _SosContactRow extends StatelessWidget {
   final String name;
@@ -665,28 +767,18 @@ class _SosContactRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-                Text(relation,
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 12)),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: _kRed.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.call, color: _kRed, size: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              Text(relation,
+                  style:
+                      const TextStyle(color: Colors.white54, fontSize: 12)),
+            ],
           ),
         ],
       ),

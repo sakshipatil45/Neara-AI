@@ -7,12 +7,15 @@ class Proposal {
   final double advancePercent;
   final String? estimatedTime;
   final String? notes;
-  final String status;
+  final String
+  status; // PENDING | ACCEPTED | REJECTED | NEGOTIATING | COUNTERED
   final DateTime createdAt;
 
   // Joined fields
   final String? workerName;
   final String? workerRating;
+  final String? workerPhone;
+  final String? workerProfileImage;
 
   const Proposal({
     required this.id,
@@ -27,6 +30,8 @@ class Proposal {
     required this.createdAt,
     this.workerName,
     this.workerRating,
+    this.workerPhone,
+    this.workerProfileImage,
   });
 
   factory Proposal.fromJson(Map<String, dynamic> json) {
@@ -37,18 +42,29 @@ class Proposal {
       id: (json['id'] as num).toInt(),
       requestId: (json['request_id'] as num).toInt(),
       workerId: (json['worker_id'] as num).toInt(),
-      inspectionFee: double.tryParse(json['inspection_fee']?.toString() ?? '0') ?? 0.0,
-      serviceCost: double.tryParse(json['service_cost']?.toString() ?? '0') ?? 0.0,
-      advancePercent: double.tryParse(json['advance_percent']?.toString() ?? '0') ?? 0.0,
+      inspectionFee:
+          double.tryParse(json['inspection_fee']?.toString() ?? '0') ?? 0.0,
+      serviceCost:
+          double.tryParse(json['service_cost']?.toString() ?? '0') ?? 0.0,
+      advancePercent:
+          double.tryParse(json['advance_percent']?.toString() ?? '0') ?? 0.0,
       estimatedTime: json['estimated_time']?.toString(),
       notes: json['notes'] as String?,
       status: json['status'] as String? ?? 'PENDING',
       createdAt: DateTime.parse(json['created_at']),
       workerName: userMap?['name'] as String?,
       workerRating: workerMap?['rating']?.toString(),
+      workerPhone: userMap?['phone'] as String?,
+      workerProfileImage: userMap?['profile_image'] as String?,
     );
   }
 
   double get totalEstimate => inspectionFee + serviceCost;
   double get advanceAmount => (totalEstimate * advancePercent) / 100;
+  double get balanceAmount => totalEstimate - advanceAmount;
+
+  bool get isPending => status == 'PENDING';
+  bool get isAccepted => status == 'ACCEPTED';
+  bool get isRejected => status == 'REJECTED';
+  bool get isNegotiating => status == 'NEGOTIATING' || status == 'COUNTERED';
 }

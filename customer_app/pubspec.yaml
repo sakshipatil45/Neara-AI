@@ -41,6 +41,11 @@ dependencies:
   permission_handler: ^12.0.1
   flutter_dotenv: ^6.0.0
   http: ^1.6.0
+  geolocator: ^13.0.2
+  flutter_map: ^8.1.1
+  latlong2: ^0.9.1
+  flutter_sms: ^3.0.1
+  quick_actions: ^1.1.0
 
 dev_dependencies:
   flutter_test:

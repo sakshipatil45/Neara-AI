@@ -662,8 +662,7 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                   builder: (_) => WorkerListingScreen(
                                     initialCategory: _workerCategory(),
                                     prefillSummary: _editCtrl.text,
-                                    prefillUrgency:
-                                        widget.intent.urgency.name,
+                                    prefillUrgency: widget.intent.urgency.name,
                                   ),
                                 ),
                               );
