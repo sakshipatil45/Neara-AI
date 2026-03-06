@@ -5,6 +5,7 @@ import '../models/proposal_model.dart';
 import '../models/payment_model.dart';
 import '../models/negotiation_model.dart';
 import '../models/review_model.dart';
+import '../models/job_model.dart';
 
 class WorkerRepository {
   final SupabaseClient _client = Supabase.instance.client;
@@ -221,31 +222,38 @@ class WorkerRepository {
   // ── Create escrow payment record (advance payment) ──
   Future<EscrowPayment> createAdvancePayment({
     required int requestId,
-    required String customerId,
-    required int workerId,
     required double advanceAmount,
     required double balanceAmount,
-    required double totalAmount,
-    required String paymentMethod,
+    int? workerId,
+    String? customerId,
   }) async {
-    final paymentData = {
-      'request_id': requestId,
-      'customer_id': customerId,
-      'worker_id': workerId,
-      'advance_amount': advanceAmount,
-      'balance_amount': balanceAmount,
-      'total_amount': totalAmount,
-      'escrow_status': 'HELD',
-      'payment_method': paymentMethod,
-    };
-
+    final txnId = 'TXN_ADV_${DateTime.now().millisecondsSinceEpoch}';
     final response = await _client
         .from('payments')
-        .insert(paymentData)
+        .insert({
+          'request_id': requestId,
+          'advance_amount': advanceAmount,
+          'balance_amount': balanceAmount,
+          'escrow_status': 'HELD',
+          'payment_status': 'ADVANCE_PAID',
+          'transaction_id': txnId,
+        })
         .select()
         .single();
 
-    // Update service request status to ADVANCE_PAID → WORKER_COMING
+    // Create a jobs record in PENDING state
+    try {
+      await _client.from('jobs').insert({
+        'request_id': requestId,
+        if (workerId != null) 'worker_id': workerId,
+        if (customerId != null) 'customer_id': customerId,
+        'status': 'PENDING',
+      });
+    } catch (_) {
+      // Non-fatal: jobs record creation failure should not block payment
+    }
+
+    // Update service request status to WORKER_COMING
     await _client
         .from('service_requests')
         .update({'status': 'WORKER_COMING'})
@@ -266,25 +274,53 @@ class WorkerRepository {
     return EscrowPayment.fromJson(data as Map<String, dynamic>);
   }
 
+  // ── Fetch all payment history for a customer (for wallet screen) ──
+  Future<List<PaymentHistoryEntry>> fetchPaymentHistory(
+    String customerId,
+  ) async {
+    final data = await _client
+        .from('service_requests')
+        .select('id, service_category, issue_summary, payments(*)')
+        .eq('customer_id', customerId)
+        .order('created_at', ascending: false);
+
+    final entries = <PaymentHistoryEntry>[];
+    for (final row in data as List<dynamic>) {
+      final paymentsList = row['payments'] as List<dynamic>?;
+      if (paymentsList != null && paymentsList.isNotEmpty) {
+        for (final p in paymentsList) {
+          entries.add(
+            PaymentHistoryEntry.fromJson({
+              ...(p as Map<String, dynamic>),
+              'service_category': row['service_category'],
+              'issue_summary': row['issue_summary'],
+            }),
+          );
+        }
+      }
+    }
+    entries.sort(
+      (a, b) =>
+          (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
+    );
+    return entries;
+  }
+
   // ── Pay full amount when no advance record exists (direct settlement) ──
   Future<EscrowPayment> payFullAmountOnCompletion({
     required int requestId,
-    required String customerId,
-    required int workerId,
     required double totalAmount,
-    String paymentMethod = 'MOCK',
   }) async {
+    final txnId = 'TXN_FULL_${DateTime.now().millisecondsSinceEpoch}';
     final response = await _client
         .from('payments')
         .insert({
           'request_id': requestId,
-          'customer_id': customerId,
-          'worker_id': workerId,
           'advance_amount': 0,
           'balance_amount': totalAmount,
-          'total_amount': totalAmount,
           'escrow_status': 'RELEASED',
-          'payment_method': paymentMethod,
+          'payment_status': 'PAID',
+          'transaction_id': txnId,
         })
         .select()
         .single();
@@ -321,6 +357,17 @@ class WorkerRepository {
         .from('service_requests')
         .update({'status': 'FINAL_PAYMENT_PENDING'})
         .eq('id', requestId);
+  }
+
+  // ── Fetch jobs record for a service request ──
+  Future<JobRecord?> fetchJobForRequest(int requestId) async {
+    final data = await _client
+        .from('jobs')
+        .select()
+        .eq('request_id', requestId)
+        .maybeSingle();
+    if (data == null) return null;
+    return JobRecord.fromJson(data as Map<String, dynamic>);
   }
 
   // ── Submit review for a worker ──
@@ -389,8 +436,7 @@ class WorkerRepository {
         )
         .eq('customer_id', customerId)
         .inFilter('status', [
-          'CREATED',
-          'MATCHING',
+          'PENDING',
           'PROPOSAL_SENT',
           'NEGOTIATING',
           'PROPOSAL_ACCEPTED',
@@ -443,7 +489,7 @@ class WorkerRepository {
         requestId: requestId,
         serviceCategory: booking['service_category'] as String? ?? '',
         issueSummary: booking['issue_summary'] as String? ?? '',
-        bookingStatus: booking['status'] as String? ?? 'CREATED',
+        bookingStatus: booking['status'] as String? ?? 'PENDING',
       );
     }).toList();
   }

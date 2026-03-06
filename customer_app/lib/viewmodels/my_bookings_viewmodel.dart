@@ -31,6 +31,7 @@ class MyBookingsState {
 
 class MyBookingsViewModel extends Notifier<MyBookingsState> {
   RealtimeChannel? _proposalChannel;
+  StreamSubscription<List<Map<String, dynamic>>>? _requestsStream;
 
   @override
   MyBookingsState build() {
@@ -52,7 +53,19 @@ class MyBookingsViewModel extends Notifier<MyBookingsState> {
         )
         .subscribe();
 
+    // Subscribe to service_requests status changes so the booking list
+    // updates in real-time whenever a booking's status changes
+    // (e.g. PENDING → PROPOSAL_SENT, WORKER_COMING → SERVICE_STARTED).
+    const customerId = 'fc91af88-9664-4953-a342-01f50a9ea2c6';
+    _requestsStream = Supabase.instance.client
+        .from('service_requests')
+        .stream(primaryKey: ['id'])
+        .eq('customer_id', customerId)
+        .listen((_) => loadBookings());
+
     ref.onDispose(() {
+      _requestsStream?.cancel();
+      _requestsStream = null;
       _proposalChannel?.unsubscribe();
       _proposalChannel = null;
     });

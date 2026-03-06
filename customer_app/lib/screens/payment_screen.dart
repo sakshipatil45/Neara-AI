@@ -7,6 +7,7 @@ import '../models/payment_model.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/workers_viewmodel.dart';
 import '../viewmodels/my_bookings_viewmodel.dart';
+import 'booking_details_screen.dart';
 
 enum _PaymentMethod { upi, card, wallet }
 
@@ -64,12 +65,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
       final repo = ref.read(workerRepositoryProvider);
       final payment = await repo.createAdvancePayment(
         requestId: widget.requestId,
-        customerId: widget.booking.customerId,
-        workerId: widget.proposal.workerId,
         advanceAmount: widget.proposal.advanceAmount,
         balanceAmount: widget.proposal.balanceAmount,
-        totalAmount: widget.proposal.totalEstimate,
-        paymentMethod: _selectedMethod.name.toUpperCase(),
+        workerId: widget.booking.workerId,
+        customerId: widget.booking.customerId,
       );
 
       setState(() {
@@ -434,7 +433,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
                   children: [
                     _TxnDetail(
                       label: 'Transaction ID',
-                      value: _escrowPayment!.advanceTransactionId ?? 'N/A',
+                      value: _escrowPayment!.transactionId ?? 'N/A',
                     ),
                     const Divider(color: AppTheme.borderDefault, height: 16),
                     _TxnDetail(
@@ -468,7 +467,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        BookingDetailsScreen(requestId: widget.requestId),
+                  ),
+                ),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.primaryBlue,
                   padding: const EdgeInsets.symmetric(vertical: 14),

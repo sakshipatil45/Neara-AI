@@ -46,13 +46,9 @@ class _ServiceCompletionScreenState
         payment = EscrowPayment(
           id: null,
           requestId: widget.requestId,
-          customerId: 'fc91af88-9664-4953-a342-01f50a9ea2c6',
-          workerId: p.workerId,
           advanceAmount: 0,
           balanceAmount: p.totalEstimate,
-          totalAmount: p.totalEstimate,
           escrowStatus: 'PENDING',
-          paymentMethod: 'MOCK',
         );
       }
       if (mounted) {
@@ -119,8 +115,6 @@ class _ServiceCompletionScreenState
       if (isFullPayment) {
         updated = await repo.payFullAmountOnCompletion(
           requestId: widget.requestId,
-          customerId: _payment!.customerId,
-          workerId: _payment!.workerId,
           totalAmount: _payment!.totalAmount,
         );
       } else {
@@ -388,11 +382,8 @@ class _ServiceCompletionScreenState
                 ),
                 child: Column(
                   children: [
-                    if (p.balanceTransactionId != null)
-                      _TxnRow(
-                        label: 'Balance TXN ID',
-                        value: p.balanceTransactionId!,
-                      ),
+                    if (p.transactionId != null)
+                      _TxnRow(label: 'Transaction ID', value: p.transactionId!),
                     const Divider(color: AppTheme.borderDefault, height: 16),
                     _TxnRow(
                       label: 'Total Paid',

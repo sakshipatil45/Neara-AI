@@ -127,7 +127,7 @@ class BookingViewModel extends Notifier<BookingState> {
           serviceCategory: serviceCategory,
           issueSummary: issueSummary,
           urgency: urgency,
-          status: 'CREATED',
+          status: 'PENDING',
         ),
       );
       state = state.copyWith(

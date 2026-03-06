@@ -54,7 +54,7 @@ class BookingRequest {
       serviceCategory: json['service_category'] as String,
       issueSummary: json['issue_summary'] as String? ?? '',
       urgency: json['urgency'] as String? ?? 'medium',
-      status: json['status'] as String? ?? 'CREATED',
+      status: json['status'] as String? ?? 'PENDING',
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       createdAt: json['created_at'] != null
@@ -69,8 +69,8 @@ class BookingRequest {
     switch (status.toUpperCase()) {
       case 'PENDING':
       case 'CREATED':
-        return const Color(0xFFEA580C);
       case 'MATCHING':
+        return const Color(0xFFEA580C);
       case 'PROPOSAL_SENT':
         return const Color(0xFF2563EB);
       case 'NEGOTIATING':
@@ -102,11 +102,10 @@ class BookingRequest {
   String get statusText {
     switch (status.toUpperCase()) {
       case 'PENDING':
-        return 'Pending';
       case 'CREATED':
-        return 'Finding Worker';
+        return 'Awaiting Response';
       case 'MATCHING':
-        return 'Matching';
+        return 'Sent to Worker';
       case 'PROPOSAL_SENT':
         return 'Offer Received';
       case 'NEGOTIATING':
@@ -122,7 +121,7 @@ class BookingRequest {
       case 'SERVICE_STARTED':
         return 'In Progress';
       case 'SERVICE_COMPLETED':
-        return 'Awaiting Payment';
+        return 'Review Work Done';
       case 'FINAL_PAYMENT_PENDING':
         return 'Pay Balance';
       case 'SERVICE_CLOSED':
@@ -139,17 +138,21 @@ class BookingRequest {
   }
 
   bool get needsProposalAction =>
-      status == 'PROPOSAL_SENT' || status == 'NEGOTIATING';
-  bool get needsAdvancePayment => status == 'PROPOSAL_ACCEPTED';
+      status.toUpperCase() == 'PROPOSAL_SENT' ||
+      status.toUpperCase() == 'NEGOTIATING';
+  bool get needsAdvancePayment => status.toUpperCase() == 'PROPOSAL_ACCEPTED';
   bool get isWorkerEnRoute =>
-      status == 'WORKER_COMING' || status == 'WORKER_ARRIVED';
-  bool get isServiceActive => status == 'SERVICE_STARTED';
-  bool get needsFinalPayment =>
-      status == 'SERVICE_COMPLETED' || status == 'FINAL_PAYMENT_PENDING';
-  bool get canReview => status == 'SERVICE_CLOSED' || status == 'PAYMENT_DONE';
+      status.toUpperCase() == 'WORKER_COMING' ||
+      status.toUpperCase() == 'WORKER_ARRIVED';
+  bool get isServiceActive => status.toUpperCase() == 'SERVICE_STARTED';
+  bool get isPhotoReviewPending => status.toUpperCase() == 'SERVICE_COMPLETED';
+  bool get needsFinalPayment => status.toUpperCase() == 'FINAL_PAYMENT_PENDING';
+  bool get canReview =>
+      status.toUpperCase() == 'SERVICE_CLOSED' ||
+      status.toUpperCase() == 'PAYMENT_DONE';
   bool get isCompleted =>
-      status == 'SERVICE_CLOSED' ||
-      status == 'PAYMENT_DONE' ||
-      status == 'RATED';
-  bool get isCancelled => status == 'CANCELLED';
+      status.toUpperCase() == 'SERVICE_CLOSED' ||
+      status.toUpperCase() == 'PAYMENT_DONE' ||
+      status.toUpperCase() == 'RATED';
+  bool get isCancelled => status.toUpperCase() == 'CANCELLED';
 }

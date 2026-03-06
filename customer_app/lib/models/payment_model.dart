@@ -1,33 +1,26 @@
 class EscrowPayment {
   final int? id;
   final int requestId;
-  final String customerId;
-  final int workerId;
   final double advanceAmount;
   final double balanceAmount;
-  final double totalAmount;
-  final String escrowStatus; // HELD | PARTIALLY_RELEASED | RELEASED | REFUNDED
-  final String paymentMethod; // UPI | CARD | WALLET | MOCK
-  final String? advanceTransactionId;
-  final String? balanceTransactionId;
-  final DateTime? advancePaidAt;
-  final DateTime? balancePaidAt;
+  final String? paymentStatus; // ADVANCE_PAID | PAID
+  final String? escrowStatus; // HELD | RELEASED
+  final String? transactionId;
   final DateTime? createdAt;
+
+  double get totalAmount => advanceAmount + balanceAmount;
+  bool get isAdvancePaid =>
+      paymentStatus == 'ADVANCE_PAID' || advanceAmount > 0;
+  bool get isFullyPaid => escrowStatus == 'RELEASED';
 
   const EscrowPayment({
     this.id,
     required this.requestId,
-    required this.customerId,
-    required this.workerId,
     required this.advanceAmount,
     required this.balanceAmount,
-    required this.totalAmount,
-    required this.escrowStatus,
-    required this.paymentMethod,
-    this.advanceTransactionId,
-    this.balanceTransactionId,
-    this.advancePaidAt,
-    this.balancePaidAt,
+    this.paymentStatus,
+    this.escrowStatus,
+    this.transactionId,
     this.createdAt,
   });
 
@@ -35,24 +28,13 @@ class EscrowPayment {
     return EscrowPayment(
       id: (json['id'] as num?)?.toInt(),
       requestId: (json['request_id'] as num).toInt(),
-      customerId: json['customer_id'] as String,
-      workerId: (json['worker_id'] as num).toInt(),
       advanceAmount:
           double.tryParse(json['advance_amount']?.toString() ?? '0') ?? 0.0,
       balanceAmount:
           double.tryParse(json['balance_amount']?.toString() ?? '0') ?? 0.0,
-      totalAmount:
-          double.tryParse(json['total_amount']?.toString() ?? '0') ?? 0.0,
-      escrowStatus: json['escrow_status'] as String? ?? 'HELD',
-      paymentMethod: json['payment_method'] as String? ?? 'MOCK',
-      advanceTransactionId: json['advance_transaction_id'] as String?,
-      balanceTransactionId: json['balance_transaction_id'] as String?,
-      advancePaidAt: json['advance_paid_at'] != null
-          ? DateTime.tryParse(json['advance_paid_at'])
-          : null,
-      balancePaidAt: json['balance_paid_at'] != null
-          ? DateTime.tryParse(json['balance_paid_at'])
-          : null,
+      paymentStatus: json['payment_status'] as String?,
+      escrowStatus: json['escrow_status'] as String?,
+      transactionId: json['transaction_id'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : null,
@@ -61,23 +43,58 @@ class EscrowPayment {
 
   Map<String, dynamic> toJson() => {
     'request_id': requestId,
-    'customer_id': customerId,
-    'worker_id': workerId,
     'advance_amount': advanceAmount,
     'balance_amount': balanceAmount,
-    'total_amount': totalAmount,
-    'escrow_status': escrowStatus,
-    'payment_method': paymentMethod,
-    if (advanceTransactionId != null)
-      'advance_transaction_id': advanceTransactionId,
-    if (balanceTransactionId != null)
-      'balance_transaction_id': balanceTransactionId,
-    if (advancePaidAt != null)
-      'advance_paid_at': advancePaidAt!.toIso8601String(),
-    if (balancePaidAt != null)
-      'balance_paid_at': balancePaidAt!.toIso8601String(),
+    if (paymentStatus != null) 'payment_status': paymentStatus,
+    if (escrowStatus != null) 'escrow_status': escrowStatus,
+    if (transactionId != null) 'transaction_id': transactionId,
   };
+}
 
-  bool get isAdvancePaid => advancePaidAt != null;
-  bool get isFullyPaid => balancePaidAt != null;
+// ── Payment history entry (payment joined with service_request context) ──
+class PaymentHistoryEntry {
+  final int? id;
+  final int requestId;
+  final String serviceCategory;
+  final String issueSummary;
+  final double advanceAmount;
+  final double balanceAmount;
+  final String? paymentStatus;
+  final String? escrowStatus;
+  final String? transactionId;
+  final DateTime? createdAt;
+
+  double get totalPaid => advanceAmount + balanceAmount;
+
+  const PaymentHistoryEntry({
+    this.id,
+    required this.requestId,
+    required this.serviceCategory,
+    required this.issueSummary,
+    required this.advanceAmount,
+    required this.balanceAmount,
+    this.paymentStatus,
+    this.escrowStatus,
+    this.transactionId,
+    this.createdAt,
+  });
+
+  factory PaymentHistoryEntry.fromJson(Map<String, dynamic> json) {
+    return PaymentHistoryEntry(
+      id: (json['id'] as num?)?.toInt(),
+      requestId: (json['request_id'] as num).toInt(),
+      serviceCategory: json['service_category'] as String? ?? 'Service',
+      issueSummary: json['issue_summary'] as String? ?? '',
+      advanceAmount:
+          double.tryParse(json['advance_amount']?.toString() ?? '0') ?? 0.0,
+      balanceAmount:
+          double.tryParse(json['balance_amount']?.toString() ?? '0') ?? 0.0,
+      paymentStatus: json['payment_status'] as String?,
+      escrowStatus: json['escrow_status'] as String?,
+      transactionId: json['transaction_id'] as String?,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
+    );
+  }
 }

@@ -246,7 +246,10 @@ class _ProposalResponseCardState extends ConsumerState<_ProposalResponseCard> {
           ),
         ),
       );
-      if (mounted) ref.read(proposalsHubProvider.notifier).load();
+      if (mounted) {
+        ref.read(proposalsHubProvider.notifier).load();
+        ref.read(myBookingsViewModelProvider.notifier).loadBookings();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
