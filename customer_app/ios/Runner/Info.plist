@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to share with emergency contacts during an SOS.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need your location to share with emergency contacts during an SOS.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access to record your emergency message during an SOS.</string>
 </dict>
 </plist>

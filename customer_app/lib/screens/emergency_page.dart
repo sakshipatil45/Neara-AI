@@ -25,7 +25,6 @@ const _mockContacts = [
 const Color _kRed = Color(0xFFDC2626);
 const Color _kRedLight = Color(0xFFFEF2F2);
 const Color _kTextPrimary = Color(0xFF111827);
-const Color _kTextSecondary = Color(0xFF374151);
 const Color _kTextTertiary = Color(0xFF6B7280);
 const Color _kBorderDefault = Color(0xFFE5E7EB);
 const Color _kBackground = Color(0xFFF9FAFB);
@@ -70,35 +69,6 @@ class _EmergencyPageState extends State<EmergencyPage>
     );
   }
 
-  void _callContact(String name, String phone) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Call $name',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-        content: Text('Dialing $phone…',
-            style: const TextStyle(color: _kTextTertiary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child:
-                const Text('Close', style: TextStyle(color: _kTextTertiary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _kRed,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Call'),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,9 +79,13 @@ class _EmergencyPageState extends State<EmergencyPage>
           children: [
             // ── Top Bar ────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(8, 12, 16, 0),
               child: Row(
                 children: [
+                  IconButton(
+                    onPressed: () => Navigator.maybePop(context),
+                    icon: const Icon(Icons.arrow_back, color: _kTextPrimary, size: 22),
+                  ),
                   const Expanded(
                     child: Text(
                       'Emergency SOS',
@@ -120,20 +94,6 @@ class _EmergencyPageState extends State<EmergencyPage>
                         fontWeight: FontWeight.bold,
                         color: _kTextPrimary,
                       ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.maybePop(context),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: _kBackground,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _kBorderDefault),
-                      ),
-                      child: const Icon(Icons.close,
-                          size: 18, color: _kTextSecondary),
                     ),
                   ),
                 ],
@@ -271,7 +231,6 @@ class _EmergencyPageState extends State<EmergencyPage>
                         (c) => _ContactCard(
                           name: c.name,
                           relation: c.relation,
-                          onCall: () => _callContact(c.name, c.phone),
                         ),
                       ),
                     ],
@@ -291,12 +250,10 @@ class _EmergencyPageState extends State<EmergencyPage>
 class _ContactCard extends StatelessWidget {
   final String name;
   final String relation;
-  final VoidCallback onCall;
 
   const _ContactCard({
     required this.name,
     required this.relation,
-    required this.onCall,
   });
 
   @override
@@ -360,18 +317,6 @@ class _ContactCard extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-          // Call button
-          GestureDetector(
-            onTap: onCall,
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: _kRedLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.call, color: _kRed, size: 20),
             ),
           ),
         ],

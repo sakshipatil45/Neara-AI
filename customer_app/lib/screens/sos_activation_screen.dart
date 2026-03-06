@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../services/emergency_ai_service.dart';
+import '../services/location_service.dart';
+import '../services/sms_service.dart';
 
 // ─── Mock contacts (same list as EmergencyPage) ───────────────────────────────
 
@@ -26,7 +29,7 @@ const _kDarkBg = Color(0xFF1A0000);
 
 // ─── SOSActivationScreen ──────────────────────────────────────────────────────
 
-enum _SosPhase { countdown, activated, listening, summarized }
+enum _SosPhase { countdown, activated, listening, summarizing, summarized }
 
 class SOSActivationScreen extends StatefulWidget {
   const SOSActivationScreen({super.key});
@@ -50,6 +53,10 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
   String _liveWords = '';
   String _finalWords = '';
   bool _isListening = false;
+
+  // AI & Location State
+  String _aiSummary = '';
+  String _locationLink = 'https://maps.google.com/?q=18.516726,73.856255';
 
   // Count ring animation
   late AnimationController _ringController;
@@ -170,27 +177,51 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     final words = _finalWords.isNotEmpty ? _finalWords : _liveWords;
     setState(() {
       _isListening = false;
-      _phase = _SosPhase.summarized;
       _finalWords = words;
     });
     _pulseController.stop();
+
+    // Start processing (AI + Location + SMS)
+    _processEmergency();
+  }
+
+  Future<void> _processEmergency() async {
+    setState(() {
+      _phase = _SosPhase.summarizing;
+    });
+
+    // 1. Fetch live location
+    final location = await LocationService.getLiveLocationLink();
+    if (!mounted) return;
+    
+    setState(() {
+      _locationLink = location;
+    });
+
+    // 2. Generate summary with AI (OpenRouter)
+    // Using "Sakshi" as customer name for now
+    final summary = await EmergencyAiService.generateEmergencySummary(
+      _finalWords,
+      "Sakshi",
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _aiSummary = summary;
+      _phase = _SosPhase.summarized;
+    });
+
+    // 3. Send SMS to all emergency contacts
+    final phones = _contacts.map((e) => '9123456789').toList(); // Placeholder phones for mock contacts
+    await SmsService.sendEmergencySms(
+      phones: phones,
+      summary: _aiSummary,
+      locationLink: _locationLink,
+    );
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
-
-  String get _emergencySummary {
-    if (_finalWords.isEmpty) return 'Emergency alert triggered. User needs immediate help.';
-    final lower = _finalWords.toLowerCase();
-    if (lower.contains('fire')) return 'Emergency Alert: Fire detected. User needs help.';
-    if (lower.contains('ambulance') || lower.contains('medical')) {
-      return 'Emergency Alert: Medical emergency. Ambulance required.';
-    }
-    if (lower.contains('accident')) return 'Emergency Alert: Accident reported. Immediate help needed.';
-    return 'Emergency Alert: $_finalWords';
-  }
-
-  String get _locationLink =>
-      'https://maps.google.com/?q=18.516726,73.856255'; // mock coords
 
   void _cancelSOS() {
     _timer?.cancel();
@@ -211,9 +242,13 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
           children: [
             // ── Top bar ───────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(8, 12, 16, 0),
               child: Row(
                 children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+                  ),
                   const Expanded(
                     child: Text(
                       'Emergency SOS',
@@ -262,6 +297,15 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                     const SizedBox(height: 36),
 
                     // ── Phase-specific section ────────────────────────
+                    if (_phase == _SosPhase.summarizing) ...[
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: CircularProgressIndicator(color: _kRed, strokeWidth: 3),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                     if (_phase == _SosPhase.summarized) ...[
                       _buildSummaryCard(),
                       const SizedBox(height: 20),
@@ -426,9 +470,12 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
       case _SosPhase.listening:
         headline = '🎙️ Listening...';
         subtitle = 'Speak your emergency message clearly.';
+      case _SosPhase.summarizing:
+        headline = '🧠 Processing...';
+        subtitle = 'Generating emergency summary and fetching location...';
       case _SosPhase.summarized:
-        headline = '✅ Message Ready';
-        subtitle = 'Emergency summary prepared for contacts.';
+        headline = '✅ Message Sent';
+        subtitle = 'Emergency alert has been sent to your contacts.';
     }
 
     return Column(
@@ -557,7 +604,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                _emergencySummary,
+                _aiSummary,
                 style: const TextStyle(
                     color: Colors.white, fontSize: 14, height: 1.5),
               ),
@@ -679,14 +726,6 @@ class _SosContactRow extends StatelessWidget {
                         color: Colors.white54, fontSize: 12)),
               ],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: _kRed.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.call, color: _kRed, size: 16),
           ),
         ],
       ),
