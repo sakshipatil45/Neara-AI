@@ -87,6 +87,37 @@ class AuthService {
     }
   }
 
+  // Update user data (name, phone)
+  Future<void> updateUserData({
+    required String userId,
+    required String name,
+    required String phone,
+  }) async {
+    try {
+      await _supabase
+          .from('users')
+          .update({'name': name, 'phone': phone})
+          .eq('id', userId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Update password
+  Future<void> updatePassword({
+    required String userId,
+    required String newPassword,
+  }) async {
+    try {
+      await _supabase
+          .from('users')
+          .update({'password': newPassword})
+          .eq('id', userId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> _saveSession(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_sessionKey, userId);
