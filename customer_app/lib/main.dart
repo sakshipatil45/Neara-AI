@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth_screen.dart';
+import 'screens/main_navigation_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await dotenv.load(fileName: ".env");
+
   await Supabase.initialize(
     url: 'https://dusgfqvvjtpdnstjwjvv.supabase.co',
     anonKey: 'sb_publishable_DwFD22YKXPAoq1wYbnrY5A_we0Id-cB',
   );
-  runApp(const MyApp());
+  runApp(
+    const ProviderScope(
+      child: CustomerApp(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class CustomerApp extends StatelessWidget {
+  const CustomerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +35,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         '/auth': (context) => const AuthScreen(),
-        // '/home': (context) => HomeScreen(), // TODO: Implement HomeScreen
+        '/home': (context) => const MainNavigationScreen(),
       },
     );
   }
