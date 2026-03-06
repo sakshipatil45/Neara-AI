@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'edit_profile_screen.dart';
 import 'wallet_screen.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -216,7 +217,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.notifications_none_outlined,
                       title: 'Notifications',
                       value: 'Manage your alert preferences',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationsScreen(),
+                          ),
+                        );
+                      },
                       showArrow: true,
                     ),
                   ]),
