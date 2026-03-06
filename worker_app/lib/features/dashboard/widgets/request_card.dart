@@ -1,157 +1,148 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../../requests/screens/request_details_screen.dart';
 
-class RequestCard extends StatelessWidget {
+class RequestCard extends StatefulWidget {
   final Map<String, dynamic> requestData;
 
   const RequestCard({super.key, required this.requestData});
 
   @override
+  State<RequestCard> createState() => _RequestCardState();
+}
+
+class _RequestCardState extends State<RequestCard> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    final serviceCategory =
+        widget.requestData['service_category'] ?? 'Service Request';
+    final location = widget.requestData['location_name'] ?? 'Local Area';
+    final payment = widget.requestData['estimated_payment'] ?? '₹450';
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                RequestDetailsScreen(requestData: widget.requestData),
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+        );
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        margin: const EdgeInsets.only(bottom: 12),
+        transform: Matrix4.identity()..scale(_isPressed ? 0.98 : 1.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(_isPressed ? 0.02 : 0.05),
+              blurRadius: _isPressed ? 8 : 15,
+              offset: Offset(0, _isPressed ? 4 : 6),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child:
+                    Icon(
+                          Icons.bolt_rounded,
+                          color: const Color(0xFFF59E0B),
+                          size: 20,
+                        )
+                        .animate(onPlay: (c) => c.repeat())
+                        .shimmer(duration: 2.seconds),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryBlue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.build_circle,
-                        color: AppTheme.primaryBlue,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          requestData['service_category'] ?? 'Service Request',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: Color(0xFF1F2937),
+                        Expanded(
+                          child: Text(
+                            serviceCategory,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: Color(0xFF1E293B),
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          'New Request Nearby',
-                          style: TextStyle(
-                            color: Colors.grey[500],
+                          payment,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_rounded,
+                          size: 12,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            location,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          '1.2 km',
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
                           ),
                         ),
                       ],
                     ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Icon(
-                  Icons.location_on_rounded,
-                  size: 16,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Checking location...',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.access_time_filled_rounded,
-                  size: 16,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Just now',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF4F46E5),
-                      side: const BorderSide(
-                        color: Color(0xFF4F46E5),
-                        width: 1.5,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Decline',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4F46E5),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Send Proposal',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: const Color(0xFFCBD5E1),
+                size: 20,
+              ),
+            ],
+          ),
         ),
       ),
     );

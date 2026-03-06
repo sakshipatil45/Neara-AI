@@ -15,11 +15,18 @@ void main() async {
     // Load environment variables
     await dotenv.load(fileName: ".env");
 
-    // Initialize Supabase
-    await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL']!,
-      anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+    final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+
+    print(
+      'DEBUG: Initializing Supabase with URL: ${supabaseUrl.isEmpty ? "EMPTY" : "FOUND"}',
     );
+    print(
+      'DEBUG: Initializing Supabase with Anon Key: ${supabaseAnonKey.isEmpty ? "EMPTY" : "FOUND"}',
+    );
+
+    // Initialize Supabase
+    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
   } catch (e) {
     debugPrint('Initialization error: $e');
   }
