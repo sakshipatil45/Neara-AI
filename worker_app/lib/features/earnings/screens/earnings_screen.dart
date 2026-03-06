@@ -65,10 +65,16 @@ class EarningsScreen extends ConsumerWidget {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (c, i) => _item(history[i]),
-                        childCount: history.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((c, i) {
+                        try {
+                          final job =
+                              (history[i] as Map?)?.cast<String, dynamic>() ??
+                              {};
+                          return _item(job);
+                        } catch (e) {
+                          return const SizedBox.shrink();
+                        }
+                      }, childCount: history.length),
                     ),
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 48)),
@@ -78,49 +84,6 @@ class EarningsScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error: $e')),
-      ),
-    );
-  }
-
-  Widget _card(String l, String v, Color c, IconData i) {
-    return Container(
-      width: 160,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: c.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(i, size: 16, color: c),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            l,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            v,
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -210,12 +173,17 @@ class EarningsScreen extends ConsumerWidget {
 
   Widget _item(Map<String, dynamic> job) {
     final amount = (job['amount'] as num?)?.toDouble() ?? 0.0;
-    final category = job['service_category'] ?? 'Service';
-    final dateStr = job['created_at'];
-    final formattedDate = dateStr != null
-        ? '${DateTime.parse(dateStr).day}/${DateTime.parse(dateStr).month}'
-        : 'N/A';
-    final typeLabel = job['type'] == 'ADVANCE'
+    final category = job['service_category']?.toString() ?? 'Service';
+    final dateStr = job['created_at']?.toString();
+
+    String formattedDate = 'N/A';
+    if (dateStr != null) {
+      final parsed = DateTime.tryParse(dateStr);
+      if (parsed != null) {
+        formattedDate = '${parsed.day}/${parsed.month}';
+      }
+    }
+    final typeLabel = job['type']?.toString() == 'ADVANCE'
         ? 'Advance Payment'
         : 'Final Payment';
 
