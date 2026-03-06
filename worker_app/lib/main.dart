@@ -4,8 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/screens/login_screen.dart';
-import 'features/dashboard/screens/dashboard_screen.dart';
 import 'features/profile/screens/profile_setup_screen.dart';
+import 'features/navigation/screens/main_navigation_screen.dart';
 import 'providers/auth_provider.dart';
 
 void main() async {
@@ -65,7 +65,7 @@ class AuthWrapper extends ConsumerWidget {
         return profileState.when(
           data: (isComplete) {
             if (isComplete) {
-              return const DashboardScreen();
+              return const MainNavigationScreen();
             } else {
               return const ProfileSetupScreen();
             }
