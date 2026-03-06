@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import 'profile_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -11,20 +12,29 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const Scaffold(body: Center(child: Text('Search'))), // Placeholder
-    const Scaffold(body: Center(child: Text('Bookings'))), // Placeholder
-    const Scaffold(body: Center(child: Text('Profile'))), // Placeholder
-  ];
+  final List<Widget> _screens = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _screens.addAll([
+      const HomeScreen(),
+      const Scaffold(body: Center(child: Text('Search'))), // Placeholder
+      const Scaffold(body: Center(child: Text('Bookings'))), // Placeholder
+      ProfileScreen(
+        onBack: () {
+          setState(() {
+            _currentIndex = 0;
+          });
+        },
+      ),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
