@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2220c926f90ac1d0c44ad574ac2544b2205f98e1
 import 'edit_profile_screen.dart';
 import 'wallet_screen.dart';
 import 'notifications_screen.dart';
 import 'emergency_contacts_screen.dart';
 
 import '../theme/app_theme.dart';
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2220c926f90ac1d0c44ad574ac2544b2205f98e1
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
