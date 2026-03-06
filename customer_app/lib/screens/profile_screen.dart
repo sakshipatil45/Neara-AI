@@ -4,6 +4,7 @@ import '../models/user_model.dart';
 import 'edit_profile_screen.dart';
 import 'wallet_screen.dart';
 import 'notifications_screen.dart';
+import 'emergency_contacts_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -236,7 +237,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.contact_emergency_outlined,
                       title: 'Emergency Contacts',
                       value: 'Manage your safety contacts',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const EmergencyContactsScreen(),
+                          ),
+                        );
+                      },
                       showArrow: true,
                     ),
                   ]),
