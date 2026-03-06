@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../dashboard/providers/dashboard_provider.dart';
-import '../../../providers/auth_provider.dart';
+import 'create_proposal_screen.dart';
 
 class RequestDetailsScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> requestData;
@@ -16,45 +15,14 @@ class RequestDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _RequestDetailsScreenState extends ConsumerState<RequestDetailsScreen> {
-  bool _isLoading = false;
-
-  Future<void> _acceptRequest() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final user = await ref.read(currentUserProvider.future);
-      if (user != null) {
-        final service = ref.read(dashboardServiceProvider);
-        await service.acceptRequest(
-          widget.requestData['service_id'] ?? '',
-          user.id,
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Request Accepted!')));
-          // Refresh dashboard data and map
-          ref.invalidate(incomingRequestsProvider);
-          ref.invalidate(activeJobsProvider);
-          Navigator.pop(context); // Go back to incoming requests list
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to accept request: \${e.toString()}')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+  void _navigateToProposal() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            CreateProposalScreen(requestData: widget.requestData),
+      ),
+    );
   }
 
   @override
@@ -62,10 +30,36 @@ class _RequestDetailsScreenState extends ConsumerState<RequestDetailsScreen> {
     final serviceCategory =
         widget.requestData['service_category'] ?? 'Service Request';
     final description =
+        widget.requestData['issue_summary'] ??
         widget.requestData['issue_description'] ??
         'Need assistance at the specified location.';
     final payment = widget.requestData['estimated_payment'] ?? '₹350 - ₹500';
     final location = widget.requestData['location_name'] ?? 'Local Area';
+
+    // Additional data for customer and time
+    final customerName = widget.requestData['customer_name'] ?? 'Customer User';
+    final customerPhone =
+        widget.requestData['customer_phone'] ?? '+91 ******4567';
+    final customerRating =
+        widget.requestData['customer_rating']?.toString() ?? '4.8';
+
+    final createdAtStr = widget.requestData['created_at'];
+    String timeAgo = 'Just now';
+    if (createdAtStr != null) {
+      try {
+        final createdAt = DateTime.parse(createdAtStr);
+        final diff = DateTime.now().difference(createdAt);
+        if (diff.inDays > 0) {
+          timeAgo = '${diff.inDays}d ago';
+        } else if (diff.inHours > 0) {
+          timeAgo = '${diff.inHours}h ago';
+        } else if (diff.inMinutes > 0) {
+          timeAgo = '${diff.inMinutes}m ago';
+        } else {
+          timeAgo = 'Just now';
+        }
+      } catch (_) {}
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -312,9 +306,9 @@ class _RequestDetailsScreenState extends ConsumerState<RequestDetailsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Customer User',
-                          style: TextStyle(
+                        Text(
+                          customerName,
+                          style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
                             color: Color(0xFF1E293B),
@@ -322,30 +316,53 @@ class _RequestDetailsScreenState extends ConsumerState<RequestDetailsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Row(
-                          children: const [
-                            Icon(
+                          children: [
+                            const Icon(
+                              Icons.location_on_rounded,
+                              size: 14,
+                              color: Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                location,
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(
                               Icons.star_rounded,
                               color: Color(0xFFF59E0B),
                               size: 14,
                             ),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
-                              '4.8',
-                              style: TextStyle(
+                              customerRating,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12,
                                 color: Color(0xFF475569),
                               ),
                             ),
-                            SizedBox(width: 8),
-                            Text(
+                            const SizedBox(width: 8),
+                            const Text(
                               '•',
                               style: TextStyle(color: Color(0xFF94A3B8)),
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Text(
-                              '+91 ******4567',
-                              style: TextStyle(
+                              customerPhone,
+                              style: const TextStyle(
                                 color: Color(0xFF64748B),
                                 fontSize: 12,
                               ),
@@ -396,8 +413,8 @@ class _RequestDetailsScreenState extends ConsumerState<RequestDetailsScreen> {
                   const SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
+                    children: [
+                      const Text(
                         'As soon as possible',
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
@@ -405,10 +422,10 @@ class _RequestDetailsScreenState extends ConsumerState<RequestDetailsScreen> {
                           color: Color(0xFF1E293B),
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Posted 5 mins ago',
-                        style: TextStyle(
+                        'Posted $timeAgo',
+                        style: const TextStyle(
                           color: Color(0xFF64748B),
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -441,7 +458,7 @@ class _RequestDetailsScreenState extends ConsumerState<RequestDetailsScreen> {
             Expanded(
               flex: 1,
               child: OutlinedButton(
-                onPressed: _isLoading ? null : () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF64748B),
                   side: const BorderSide(color: Color(0xFFE2E8F0), width: 2),
@@ -460,7 +477,7 @@ class _RequestDetailsScreenState extends ConsumerState<RequestDetailsScreen> {
             Expanded(
               flex: 2,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _acceptRequest,
+                onPressed: _navigateToProposal,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryBlue,
                   foregroundColor: Colors.white,
@@ -471,22 +488,10 @@ class _RequestDetailsScreenState extends ConsumerState<RequestDetailsScreen> {
                   ),
                   shadowColor: AppTheme.primaryBlue.withOpacity(0.4),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'Accept Request',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                        ),
-                      ),
+                child: const Text(
+                  'Send Proposal',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                ),
               ),
             ),
           ],

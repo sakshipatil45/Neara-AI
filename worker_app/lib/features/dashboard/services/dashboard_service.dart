@@ -93,20 +93,84 @@ class DashboardService {
     }
   }
 
-  // Accept a service request
-  Future<void> acceptRequest(String requestId, String workerId) async {
+  // Accept a service request - Keep this for legacy or direct matching if needed
+  Future<void> acceptRequest(dynamic requestId, dynamic workerId) async {
+    try {
+      print(
+        'DEBUG: Attempting to accept request ID: $requestId for worker: $workerId',
+      );
+
+      await _supabase
+          .from('service_requests')
+          .update({'status': 'PROPOSAL_ACCEPTED', 'worker_id': workerId})
+          .eq('id', requestId);
+
+      print('DEBUG: Request $requestId successfully accepted.');
+    } catch (e) {
+      print('DEBUG: Error in acceptRequest: $e');
+      throw Exception('Failed to accept request: $e');
+    }
+  }
+
+  // Send a proposal for a service request
+  Future<void> sendProposal({
+    required dynamic requestId,
+    required dynamic workerId,
+    required double serviceCost,
+    required double advancePercent,
+    required String? arrivalTime,
+    required String? notes,
+  }) async {
+    try {
+      print('DEBUG: Sending proposal for request $requestId');
+
+      // 1. Insert proposal
+      await _supabase.from('proposals').insert({
+        'request_id': requestId,
+        'worker_id': workerId,
+        'service_cost': serviceCost,
+        'advance_percent': advancePercent,
+        'notes': notes,
+        'status': 'PENDING',
+        'estimated_time': arrivalTime, // Expecting format like '10 minutes'
+      });
+
+      // 2. Update service request status
+      // We also set the worker_id so the customer knows who sent the (primary) proposal
+      // In a multi-proposal system, we'd handle this differently
+      await _supabase
+          .from('service_requests')
+          .update({'status': 'PROPOSAL_SENT', 'worker_id': workerId})
+          .eq('id', requestId);
+
+      print('DEBUG: Proposal sent successfully');
+    } catch (e) {
+      print('DEBUG: Error in sendProposal: $e');
+      throw Exception('Failed to send proposal: $e');
+    }
+  }
+
+  // Update status to 'in_progress'
+  Future<void> startJob(dynamic requestId) async {
     try {
       await _supabase
           .from('service_requests')
-          .update({
-            'status':
-                'MATCHING', // or 'ACCEPTED' based on exact flow, assume MATCHING or similar
-            'worker_id': workerId,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('service_id', requestId);
+          .update({'status': 'SERVICE_STARTED'})
+          .eq('id', requestId);
     } catch (e) {
-      throw Exception('Failed to accept request');
+      throw Exception('Failed to start job: $e');
+    }
+  }
+
+  // Update status to 'completed'
+  Future<void> completeJob(dynamic requestId) async {
+    try {
+      await _supabase
+          .from('service_requests')
+          .update({'status': 'SERVICE_COMPLETED'})
+          .eq('id', requestId);
+    } catch (e) {
+      throw Exception('Failed to complete job: $e');
     }
   }
 }

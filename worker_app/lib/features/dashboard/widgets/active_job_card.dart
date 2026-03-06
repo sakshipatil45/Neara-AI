@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../jobs/screens/active_job_screen.dart';
 
 class ActiveJobCard extends StatefulWidget {
   final Map<String, dynamic> jobData;
@@ -17,7 +18,15 @@ class _ActiveJobCardState extends State<ActiveJobCard> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ActiveJobScreen(jobData: widget.jobData),
+          ),
+        );
+      },
       onTapCancel: () => setState(() => _isPressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),

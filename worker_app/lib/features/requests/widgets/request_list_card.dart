@@ -29,6 +29,24 @@ class _RequestListCardState extends State<RequestListCard> {
     final payment = widget.requestData['estimated_payment'] ?? '₹350 - ₹500';
     final location = widget.requestData['location_name'] ?? 'Local Area';
 
+    final createdAtStr = widget.requestData['created_at'];
+    String timeAgo = 'Just now';
+    if (createdAtStr != null) {
+      try {
+        final createdAt = DateTime.parse(createdAtStr);
+        final diff = DateTime.now().difference(createdAt);
+        if (diff.inDays > 0) {
+          timeAgo = '${diff.inDays}d ago';
+        } else if (diff.inHours > 0) {
+          timeAgo = '${diff.inHours}h ago';
+        } else if (diff.inMinutes > 0) {
+          timeAgo = '${diff.inMinutes}m ago';
+        } else {
+          timeAgo = 'Just now';
+        }
+      } catch (_) {}
+    }
+
     return GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) {
@@ -173,16 +191,16 @@ class _RequestListCardState extends State<RequestListCard> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
-                          children: const [
-                            Icon(
+                          children: [
+                            const Icon(
                               Icons.access_time_rounded,
                               size: 14,
                               color: Color(0xFF64748B),
                             ),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
-                              '5 mins ago',
-                              style: TextStyle(
+                              timeAgo,
+                              style: const TextStyle(
                                 color: Color(0xFF64748B),
                                 fontWeight: FontWeight.w700,
                                 fontSize: 11,
