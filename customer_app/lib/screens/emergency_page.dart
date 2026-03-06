@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../main.dart' show pinSosShortcut;
 import 'sos_activation_screen.dart';
 
 // ─── Mock emergency contacts (replace with Supabase data when backend ready) ──
@@ -54,6 +55,15 @@ class _EmergencyPageState extends State<EmergencyPage>
     _pulseScale = Tween<double>(begin: 1.0, end: 1.06).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+    // Offer to pin the SOS shortcut to the home screen (only once)
+    _maybeOfferPinShortcut();
+  }
+
+  Future<void> _maybeOfferPinShortcut() async {
+    // The native side (MainActivity) checks ShortcutManager.getPinnedShortcuts()
+    // to decide whether to actually show the pin dialog — so it's safe to call
+    // this every time the page is opened.
+    await pinSosShortcut();
   }
 
   @override
@@ -70,36 +80,6 @@ class _EmergencyPageState extends State<EmergencyPage>
     );
   }
 
-  void _callContact(String name, String phone) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Call $name',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-        content: Text('Dialing $phone…',
-            style: const TextStyle(color: _kTextTertiary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child:
-                const Text('Close', style: TextStyle(color: _kTextTertiary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _kRed,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Call'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,9 +89,16 @@ class _EmergencyPageState extends State<EmergencyPage>
           children: [
             // ── Top Bar ────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
               child: Row(
                 children: [
+                  // Back arrow
+                  IconButton(
+                    onPressed: () => Navigator.maybePop(context),
+                    icon: const Icon(Icons.arrow_back_ios_new,
+                        size: 20, color: _kTextPrimary),
+                    tooltip: 'Back',
+                  ),
                   const Expanded(
                     child: Text(
                       'Emergency SOS',
@@ -120,20 +107,6 @@ class _EmergencyPageState extends State<EmergencyPage>
                         fontWeight: FontWeight.bold,
                         color: _kTextPrimary,
                       ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.maybePop(context),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: _kBackground,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _kBorderDefault),
-                      ),
-                      child: const Icon(Icons.close,
-                          size: 18, color: _kTextSecondary),
                     ),
                   ),
                 ],
@@ -271,7 +244,6 @@ class _EmergencyPageState extends State<EmergencyPage>
                         (c) => _ContactCard(
                           name: c.name,
                           relation: c.relation,
-                          onCall: () => _callContact(c.name, c.phone),
                         ),
                       ),
                     ],
@@ -291,12 +263,10 @@ class _EmergencyPageState extends State<EmergencyPage>
 class _ContactCard extends StatelessWidget {
   final String name;
   final String relation;
-  final VoidCallback onCall;
 
   const _ContactCard({
     required this.name,
     required this.relation,
-    required this.onCall,
   });
 
   @override
@@ -360,18 +330,6 @@ class _ContactCard extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-          // Call button
-          GestureDetector(
-            onTap: onCall,
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: _kRedLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.call, color: _kRed, size: 20),
             ),
           ),
         ],
