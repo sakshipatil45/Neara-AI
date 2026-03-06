@@ -10,7 +10,7 @@ This repository contains two Flutter applications:
 - **Purpose**: Customer-facing app for requesting services
 - **Key Features**: Voice AI, Worker search, Payment processing, Service tracking
 
-### Worker Partner App (`/Worker Partner App/worker_partner_app/`)
+### Worker Partner App (`/Worker Partner App/worker_app/`)
 - **Purpose**: Worker-facing app for managing service requests
 - **Key Features**: Job management, Earnings tracking, Profile management
 
@@ -64,7 +64,7 @@ flutter run
 
 ### Worker Partner App Setup
 ```bash
-cd "Worker Partner App/worker_partner_app"
+cd "Worker Partner App/worker_app"
 flutter pub get
 flutter run
 ```
