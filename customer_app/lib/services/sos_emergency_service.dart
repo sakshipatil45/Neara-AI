@@ -3,12 +3,16 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_sms/flutter_sms.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 
 import '../core/env.dart';
 
-/// Handles AI summarization and SMS sending for the Emergency SOS feature.
+// Reuse the same channel registered in MainActivity.kt
+const _kSosChannel = MethodChannel('com.example.customer_app/sos_shortcut');
+
+/// Handles AI summarization and background SMS sending for Emergency SOS.
 class SosEmergencyService {
   static const String _baseUrl =
       'https://openrouter.ai/api/v1/chat/completions';
@@ -17,19 +21,19 @@ class SosEmergencyService {
 
   // ── AI Summarization ──────────────────────────────────────────────────────
 
-  /// Takes the raw speech-to-text [transcript] and [customerName],
-  /// returns a short, formatted emergency summary string.
+  /// Returns a short formatted emergency summary.
   ///
-  /// Format:
+  /// Format examples:
   ///   🚨 Emergency Alert
   ///
-  ///   <Name> is facing an emergency: <short issue>.
+  ///   Fire reported at Sakshi's location.
+  ///   Accident reported near Rahul.
   Future<String> summarize({
     required String transcript,
     required String customerName,
   }) async {
     if (transcript.trim().isEmpty) {
-      return '🚨 Emergency Alert\n\n$customerName has triggered an emergency SOS.';
+      return '🚨 Emergency Alert\n\nEmergency SOS triggered by $customerName.';
     }
 
     try {
@@ -40,21 +44,25 @@ class SosEmergencyService {
 
       final systemPrompt = '''
 You are an emergency alert message generator.
-Given a voice transcript of someone in an emergency, generate ONE short message.
+Given a voice transcript of someone in an emergency, generate ONE short alert message.
 
-Rules:
-- Output ONLY the message, no extra text.
-- Format EXACTLY like this (fill in the blanks):
+STRICT FORMAT — output ONLY this, nothing else:
 🚨 Emergency Alert
 
-<Name> is facing an emergency: <brief issue in 5-8 words>.
+<brief description of what happened> near <Name> OR at <Name>'s location.
 
-- Replace <Name> with the customer name provided.
-- Replace <brief issue> with a concise description of what they described.
+RULES:
+- Do NOT use the word "user".
 - Do NOT say "Immediate assistance required".
 - Do NOT say "user's location".
-- Keep it natural and human.
-- Maximum 2 lines total after the header.
+- Use the person's name naturally (e.g. "near Sakshi", "at Sakshi's location").
+- Keep the description SHORT — 5-8 words maximum.
+- Use natural language. Examples:
+    "Fire reported at Sakshi's location."
+    "Accident reported near Rahul."
+    "Medical emergency near Priya."
+    "Gas leak reported at Aman's location."
+- Output ONLY the two-line message. No extra text.
 ''';
 
       final userMessage =
@@ -85,18 +93,17 @@ Rules:
         final content =
             (data['choices'][0]['message']['content'] as String).trim();
         print('✅ SOS AI summary: $content');
-        // Ensure the summary starts with the emoji header
         if (content.contains('Emergency Alert')) return content;
-        return '🚨 Emergency Alert\n\n$customerName is facing an emergency: $content';
+        return '🚨 Emergency Alert\n\n$content';
       } else {
-        print('⚠️ OpenRouter error ${response.statusCode}: ${response.body}');
+        print('⚠️ OpenRouter ${response.statusCode}: ${response.body}');
         return _fallbackSummary(transcript, customerName);
       }
     } on TimeoutException {
-      print('⏱️ SOS AI timeout — using fallback');
+      print('⏱️ SOS AI timeout');
       return _fallbackSummary(transcript, customerName);
     } catch (e) {
-      print('❌ SOS AI error: $e — using fallback');
+      print('❌ SOS AI error: $e');
       return _fallbackSummary(transcript, customerName);
     }
   }
@@ -105,27 +112,29 @@ Rules:
     final t = transcript.toLowerCase();
     String issue;
     if (t.contains('fire')) {
-      issue = 'Fire reported nearby.';
+      issue = "Fire reported at $name's location.";
     } else if (t.contains('accident')) {
-      issue = 'Accident reported.';
-    } else if (t.contains('medical') || t.contains('ambulance') || t.contains('hospital')) {
-      issue = 'Medical emergency.';
-    } else if (t.contains('theft') || t.contains('robbery') || t.contains('attack')) {
-      issue = 'Security threat reported.';
+      issue = 'Accident reported near $name.';
+    } else if (t.contains('medical') ||
+        t.contains('ambulance') ||
+        t.contains('hospital')) {
+      issue = 'Medical emergency near $name.';
+    } else if (t.contains('theft') ||
+        t.contains('robbery') ||
+        t.contains('attack')) {
+      issue = 'Security threat near $name.';
     } else if (t.contains('gas') || t.contains('leak')) {
-      issue = 'Gas leak reported.';
-    } else if (transcript.trim().isNotEmpty) {
-      final trimmed = transcript.trim();
-      issue = trimmed.length > 60 ? '${trimmed.substring(0, 57)}...' : trimmed;
+      issue = "Gas leak at $name's location.";
     } else {
-      issue = 'Emergency SOS activated.';
+      issue = 'Emergency SOS triggered by $name.';
     }
-    return '🚨 Emergency Alert\n\n$name is facing an emergency: $issue';
+    return '🚨 Emergency Alert\n\n$issue';
   }
 
-  // ── SMS Sending ───────────────────────────────────────────────────────────
+  // ── Background SMS via native SmsManager ─────────────────────────────────
 
-  /// Sends an SMS to all [phones] with the [summary] and [locationLink].
+  /// Sends SMS **silently in the background** via Android SmsManager.
+  /// Requests SEND_SMS runtime permission if not already granted.
   Future<void> sendSmsToContacts({
     required String summary,
     required String locationLink,
@@ -133,13 +142,33 @@ Rules:
   }) async {
     if (phones.isEmpty) return;
 
+    // ── Request SMS permission at runtime ──────────────────────────────────
+    final status = await Permission.sms.status;
+    if (!status.isGranted) {
+      print('📋 Requesting SEND_SMS permission...');
+      final result = await Permission.sms.request();
+      if (!result.isGranted) {
+        print('❌ SEND_SMS permission denied (${result.name}). SMS not sent.');
+        if (result.isPermanentlyDenied) {
+          print('⚙️  User must enable SMS in App Settings.');
+        }
+        return;
+      }
+    }
+    print('✅ SEND_SMS permission granted');
+
     final body = '$summary\n\nLive Location:\n$locationLink';
 
-    try {
-      final result = await sendSMS(message: body, recipients: phones);
-      print('📲 SMS result: $result');
-    } catch (e) {
-      print('❌ SMS send error: $e');
+    for (final phone in phones) {
+      try {
+        final ok = await _kSosChannel.invokeMethod<bool>('sendSms', {
+          'phone': phone,
+          'message': body,
+        });
+        print('📲 SMS to $phone: ${ok == true ? "sent" : "failed"}');
+      } catch (e) {
+        print('❌ SMS to $phone: $e');
+      }
     }
   }
 }
