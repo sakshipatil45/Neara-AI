@@ -13,6 +13,43 @@ class IncomingRequestsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final incomingRequestsAsync = ref.watch(incomingRequestsProvider);
 
+    // Show banner when a new request arrives while this screen is open.
+    ref.listen<Map<String, dynamic>?>(newRequestAlertProvider, (_, next) {
+      if (next == null) return;
+      final category = next['service_category'] ?? 'Service Request';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.fiber_new_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'New request just arrived: $category',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      ref.read(newRequestAlertProvider.notifier).dismiss();
+    });
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -47,7 +84,7 @@ class IncomingRequestsScreen extends ConsumerWidget {
           return RefreshIndicator(
             color: AppTheme.primaryBlue,
             onRefresh: () async {
-              ref.invalidate(incomingRequestsProvider);
+              await ref.read(incomingRequestsProvider.notifier).refresh();
             },
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),

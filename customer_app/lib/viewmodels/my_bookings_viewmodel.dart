@@ -22,19 +22,41 @@ class MyBookingsState {
     List<BookingRequest>? bookings,
     bool? isLoading,
     String? error,
-  }) =>
-      MyBookingsState(
-        bookings: bookings ?? this.bookings,
-        isLoading: isLoading ?? this.isLoading,
-        error: error,
-      );
+  }) => MyBookingsState(
+    bookings: bookings ?? this.bookings,
+    isLoading: isLoading ?? this.isLoading,
+    error: error,
+  );
 }
 
 class MyBookingsViewModel extends Notifier<MyBookingsState> {
+  RealtimeChannel? _proposalChannel;
+
   @override
   MyBookingsState build() {
     // Initial fetch
     Future.microtask(() => loadBookings());
+
+    // Subscribe to new proposals so the list updates automatically when a
+    // worker sends a proposal on any of the customer's requests.
+    _proposalChannel = Supabase.instance.client
+        .channel('my_bookings_proposals_ch')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'proposals',
+          callback: (_) {
+            loadBookings();
+            ref.read(newProposalAlertProvider.notifier).trigger();
+          },
+        )
+        .subscribe();
+
+    ref.onDispose(() {
+      _proposalChannel?.unsubscribe();
+      _proposalChannel = null;
+    });
+
     return const MyBookingsState();
   }
 
@@ -57,7 +79,9 @@ class MyBookingsViewModel extends Notifier<MyBookingsState> {
 }
 
 final myBookingsViewModelProvider =
-    NotifierProvider<MyBookingsViewModel, MyBookingsState>(MyBookingsViewModel.new);
+    NotifierProvider<MyBookingsViewModel, MyBookingsState>(
+      MyBookingsViewModel.new,
+    );
 
 // ─────────────── Booking Details Notifier (with Real-time) ───────────────
 class BookingDetailsState {
@@ -78,13 +102,12 @@ class BookingDetailsState {
     List<Proposal>? proposals,
     bool? isLoading,
     String? error,
-  }) =>
-      BookingDetailsState(
-        booking: booking ?? this.booking,
-        proposals: proposals ?? this.proposals,
-        isLoading: isLoading ?? this.isLoading,
-        error: error,
-      );
+  }) => BookingDetailsState(
+    booking: booking ?? this.booking,
+    proposals: proposals ?? this.proposals,
+    isLoading: isLoading ?? this.isLoading,
+    error: error,
+  );
 }
 
 class BookingDetailsViewModel extends Notifier<BookingDetailsState> {
@@ -97,7 +120,7 @@ class BookingDetailsViewModel extends Notifier<BookingDetailsState> {
   BookingDetailsState build() {
     // Initial fetch
     Future.microtask(() => loadDetails(requestId));
-    
+
     // Setup real-time subscription for this specific request ID
     setupRealtime(requestId);
 
@@ -138,7 +161,7 @@ class BookingDetailsViewModel extends Notifier<BookingDetailsState> {
           if (data.isNotEmpty) {
             // When status changes, reload everything to get joined data too
             loadDetails(id);
-            
+
             // Also refresh the main list if needed
             ref.read(myBookingsViewModelProvider.notifier).loadBookings();
           }
@@ -161,5 +184,20 @@ class BookingDetailsViewModel extends Notifier<BookingDetailsState> {
 
 final bookingDetailsViewModelProvider =
     NotifierProvider.family<BookingDetailsViewModel, BookingDetailsState, int>(
-  (requestId) => BookingDetailsViewModel(requestId),
-);
+      (requestId) => BookingDetailsViewModel(requestId),
+    );
+
+// ─────────────── New-Proposal Alert (customer) ───────────────
+// Holds a simple counter; increments each time a proposal arrives via realtime.
+// Consumers use ref.listen to show a SnackBar notification.
+class NewProposalAlertNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void trigger() => state = state + 1;
+}
+
+final newProposalAlertProvider =
+    NotifierProvider<NewProposalAlertNotifier, int>(
+      NewProposalAlertNotifier.new,
+    );
