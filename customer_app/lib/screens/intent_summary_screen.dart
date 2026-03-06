@@ -1,40 +1,8 @@
-// ignore_for_file: unnecessary_underscores, unused_field, dead_code
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/service_intent_model.dart';
-
-// ─────────────── NEARA Design Tokens ───────────────
-class _DS {
-  // Colors
-  static const primary = Color(0xFF2563EB);
-  static const primaryLight = Color(0xFF3B82F6);
-  static const primaryDark = Color(0xFF1E40AF);
-  static const success = Color(0xFF059669);
-  static const warning = Color(0xFFEA580C);
-  static const error = Color(0xFFDC2626);
-  static const info = Color(0xFF0284C7);
-
-  static const bg = Color(0xFFFFFFFF);
-  static const bgSecondary = Color(0xFFF9FAFB);
-  static const bgTertiary = Color(0xFFF3F4F6);
-
-  static const textPrimary = Color(0xFF111827);
-  static const textSecondary = Color(0xFF374151);
-  static const textTertiary = Color(0xFF6B7280);
-  static const textDisabled = Color(0xFF9CA3AF);
-
-  static const borderDefault = Color(0xFFE5E7EB);
-  static const borderFocus = Color(0xFF2563EB);
-  static const gray200 = Color(0xFFE5E7EB);
-  static const gray800 = Color(0xFF1F2937);
-
-  // Shadows – Level 1
-  static List<BoxShadow> get shadow1 => const [
-        BoxShadow(color: Color(0x1F000000), blurRadius: 3, offset: Offset(0, 1)),
-        BoxShadow(color: Color(0x3D000000), blurRadius: 2, offset: Offset(0, 1)),
-      ];
-
-}
+import '../theme/app_theme.dart';
+import 'worker_listing_screen.dart';
 
 class IntentSummaryScreen extends ConsumerStatefulWidget {
   final EmergencyInterpretation intent;
@@ -42,7 +10,8 @@ class IntentSummaryScreen extends ConsumerStatefulWidget {
   const IntentSummaryScreen({super.key, required this.intent});
 
   @override
-  ConsumerState<IntentSummaryScreen> createState() => _IntentSummaryScreenState();
+  ConsumerState<IntentSummaryScreen> createState() =>
+      _IntentSummaryScreenState();
 }
 
 class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
@@ -64,13 +33,13 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
       duration: const Duration(milliseconds: 350),
     )..forward();
 
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _enterCtrl,
-      curve: const Cubic(0.2, 0, 0, 1), // Emphasized easing
-    ));
+    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _enterCtrl,
+            curve: const Cubic(0.2, 0, 0, 1), // Emphasized easing
+          ),
+        );
 
     _fade = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOut);
   }
@@ -85,10 +54,14 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
   // ── Urgency helpers ──
   Color _urgencyColor() {
     switch (widget.intent.urgency) {
-      case EmergencyUrgency.critical: return _DS.error;
-      case EmergencyUrgency.high: return _DS.warning;
-      case EmergencyUrgency.medium: return _DS.info;
-      case EmergencyUrgency.low: return _DS.success;
+      case EmergencyUrgency.critical:
+        return AppTheme.statusError;
+      case EmergencyUrgency.high:
+        return AppTheme.statusWarning;
+      case EmergencyUrgency.medium:
+        return AppTheme.primaryBlue;
+      case EmergencyUrgency.low:
+        return AppTheme.statusSuccess;
     }
   }
 
@@ -97,25 +70,57 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
   // ── Category helpers ──
   IconData _categoryIcon() {
     switch (widget.intent.serviceCategory) {
-      case ServiceCategory.plumber: return Icons.plumbing_rounded;
-      case ServiceCategory.electrician: return Icons.electrical_services_rounded;
-      case ServiceCategory.mechanic: return Icons.car_repair_rounded;
-      case ServiceCategory.maid: return Icons.cleaning_services_rounded;
-      case ServiceCategory.roadsideAssistance: return Icons.local_taxi_rounded;
-      case ServiceCategory.gasService: return Icons.local_fire_department_rounded;
-      case ServiceCategory.other: return Icons.home_repair_service_rounded;
+      case ServiceCategory.plumber:
+        return Icons.plumbing_rounded;
+      case ServiceCategory.electrician:
+        return Icons.electrical_services_rounded;
+      case ServiceCategory.mechanic:
+        return Icons.car_repair_rounded;
+      case ServiceCategory.maid:
+        return Icons.cleaning_services_rounded;
+      case ServiceCategory.roadsideAssistance:
+        return Icons.local_taxi_rounded;
+      case ServiceCategory.gasService:
+        return Icons.local_fire_department_rounded;
+      case ServiceCategory.other:
+        return Icons.home_repair_service_rounded;
     }
   }
 
   String _categoryLabel() {
     switch (widget.intent.serviceCategory) {
-      case ServiceCategory.plumber: return 'Plumber';
-      case ServiceCategory.electrician: return 'Electrician';
-      case ServiceCategory.mechanic: return 'Mechanic';
-      case ServiceCategory.maid: return 'Cleaning & Maid';
-      case ServiceCategory.roadsideAssistance: return 'Roadside Assistance';
-      case ServiceCategory.gasService: return 'Gas Service';
-      case ServiceCategory.other: return 'Home Service';
+      case ServiceCategory.plumber:
+        return 'Plumber';
+      case ServiceCategory.electrician:
+        return 'Electrician';
+      case ServiceCategory.mechanic:
+        return 'Mechanic';
+      case ServiceCategory.maid:
+        return 'Cleaning & Maid';
+      case ServiceCategory.roadsideAssistance:
+        return 'Roadside Assistance';
+      case ServiceCategory.gasService:
+        return 'Gas Service';
+      case ServiceCategory.other:
+        return 'Home Service';
+    }
+  }
+
+  /// Maps ServiceCategory to the string used by WorkerListingScreen's filter.
+  String _workerCategory() {
+    switch (widget.intent.serviceCategory) {
+      case ServiceCategory.plumber:
+        return 'Plumber';
+      case ServiceCategory.electrician:
+        return 'Electrician';
+      case ServiceCategory.mechanic:
+        return 'Mechanic';
+      case ServiceCategory.maid:
+        return 'Maid';
+      case ServiceCategory.gasService:
+        return 'Gas Service';
+      default:
+        return 'All';
     }
   }
 
@@ -126,7 +131,7 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
     final confidencePct = (intent.confidence * 100).round();
 
     return Scaffold(
-      backgroundColor: _DS.bg,
+      backgroundColor: AppTheme.backgroundSecondary,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fade,
@@ -139,29 +144,33 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                   height: 56,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: const BoxDecoration(
-                    color: _DS.bg,
+                    color: AppTheme.backgroundPrimary,
                     border: Border(
-                      bottom: BorderSide(color: _DS.borderDefault, width: 1),
+                      bottom: BorderSide(
+                        color: AppTheme.borderDefault,
+                        width: 1,
+                      ),
                     ),
                   ),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                            size: 20, color: _DS.textSecondary),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 20,
+                          color: AppTheme.textSecondary,
+                        ),
                         onPressed: () => Navigator.pop(context),
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Request Summary',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: _DS.textPrimary,
-                            letterSpacing: -0.2,
-                          ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
                         ),
                       ),
                       const SizedBox(width: 48),
@@ -180,10 +189,16 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                         // ── AI Category Hero Card ──
                         Container(
                           decoration: BoxDecoration(
-                            color: _DS.bg,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: _DS.borderDefault),
-                            boxShadow: _DS.shadow1,
+                            color: AppTheme.backgroundPrimary,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.borderDefault),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Column(
                             children: [
@@ -194,8 +209,11 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                   borderRadius: const BorderRadius.vertical(
                                     top: Radius.circular(8),
                                   ),
-                                  gradient: LinearGradient(
-                                    colors: [_DS.primary, _DS.primaryLight],
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      AppTheme.primaryBlue,
+                                      AppTheme.primaryBlue,
+                                    ],
                                   ),
                                 ),
                               ),
@@ -209,22 +227,30 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                       children: [
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 3),
+                                            horizontal: 8,
+                                            vertical: 3,
+                                          ),
                                           decoration: BoxDecoration(
-                                            color: _DS.primary.withValues(alpha: 0.08),
-                                            borderRadius: BorderRadius.circular(4),
+                                            color: AppTheme.primaryBlue
+                                                .withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
                                           ),
                                           child: const Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Icon(Icons.auto_awesome_rounded,
-                                                  color: _DS.primary, size: 12),
-                                              SizedBox(width: 4),
-                                              Text(
+                                              Icon(
+                                                Icons.auto_awesome_rounded,
+                                                color: AppTheme.primaryBlue,
+                                                size: 12,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Text(
                                                 'AI Detected',
                                                 style: TextStyle(
                                                   fontFamily: 'Inter',
-                                                  color: _DS.primary,
+                                                  color: AppTheme.primaryBlue,
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.w600,
                                                   letterSpacing: 0.4,
@@ -237,12 +263,17 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                         // Urgency badge
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 4),
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
                                           decoration: BoxDecoration(
-                                            color: urgColor.withValues(alpha: 0.08),
-                                            borderRadius: BorderRadius.circular(4),
+                                            color: urgColor.withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
                                             border: Border.all(
-                                                color: urgColor.withValues(alpha: 0.3)),
+                                              color: urgColor.withOpacity(0.3),
+                                            ),
                                           ),
                                           child: Text(
                                             _urgencyLabel(),
@@ -267,24 +298,28 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                           width: 52,
                                           height: 52,
                                           decoration: BoxDecoration(
-                                            color: _DS.primary.withValues(alpha: 0.08),
-                                            borderRadius: BorderRadius.circular(8),
+                                            color: AppTheme.primaryBlue
+                                                .withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                           ),
                                           child: Icon(
                                             _categoryIcon(),
-                                            color: _DS.primary,
+                                            color: AppTheme.primaryBlue,
                                             size: 26,
                                           ),
                                         ),
                                         const SizedBox(width: 14),
                                         Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               'Service Needed',
                                               style: const TextStyle(
                                                 fontFamily: 'Inter',
-                                                color: _DS.textTertiary,
+                                                color: AppTheme.textTertiary,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w500,
                                               ),
@@ -292,13 +327,13 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                             const SizedBox(height: 3),
                                             Text(
                                               _categoryLabel(),
-                                              style: const TextStyle(
-                                                fontFamily: 'Inter',
-                                                color: _DS.textPrimary,
-                                                fontSize: 22,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: -0.4,
-                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .headlineMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                    color: AppTheme.textPrimary,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -316,10 +351,16 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                         // ── Problem Summary Card ──
                         Container(
                           decoration: BoxDecoration(
-                            color: _DS.bg,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: _DS.borderDefault),
-                            boxShadow: _DS.shadow1,
+                            color: AppTheme.backgroundPrimary,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.borderDefault),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(20),
@@ -336,20 +377,27 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                         fontFamily: 'Inter',
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: _DS.textSecondary,
+                                        color: AppTheme.textSecondary,
                                         letterSpacing: 0.1,
                                       ),
                                     ),
                                     GestureDetector(
-                                      onTap: () =>
-                                          setState(() => _isEditing = !_isEditing),
+                                      onTap: () => setState(
+                                        () => _isEditing = !_isEditing,
+                                      ),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 5),
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
                                         decoration: BoxDecoration(
                                           border: Border.all(
-                                              color: _DS.primary.withValues(alpha: 0.4)),
-                                          borderRadius: BorderRadius.circular(6),
+                                            color: AppTheme.primaryBlue
+                                                .withOpacity(0.4),
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: Row(
                                           children: [
@@ -357,15 +405,15 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                               _isEditing
                                                   ? Icons.check_rounded
                                                   : Icons.edit_rounded,
-                                              color: _DS.primary,
+                                              color: AppTheme.primaryBlue,
                                               size: 13,
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
                                               _isEditing ? 'Save' : 'Edit',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontFamily: 'Inter',
-                                                color: _DS.primary,
+                                                color: AppTheme.primaryBlue,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -383,41 +431,49 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                         maxLines: 4,
                                         style: const TextStyle(
                                           fontFamily: 'Inter',
-                                          color: _DS.textPrimary,
+                                          color: AppTheme.textPrimary,
                                           fontSize: 15,
                                           height: 1.6,
                                         ),
                                         decoration: InputDecoration(
                                           filled: true,
-                                          fillColor: _DS.bgTertiary,
+                                          fillColor:
+                                              AppTheme.backgroundSecondary,
                                           border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(6),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                             borderSide: const BorderSide(
-                                                color: _DS.borderDefault),
+                                              color: AppTheme.borderDefault,
+                                            ),
                                           ),
                                           enabledBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(6),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                             borderSide: const BorderSide(
-                                                color: _DS.borderDefault),
+                                              color: AppTheme.borderDefault,
+                                            ),
                                           ),
                                           focusedBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(6),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                             borderSide: const BorderSide(
-                                                color: _DS.borderFocus,
-                                                width: 1.5),
+                                              color: AppTheme.primaryBlue,
+                                              width: 1.5,
+                                            ),
                                           ),
-                                          contentPadding:
-                                              const EdgeInsets.all(12),
+                                          contentPadding: const EdgeInsets.all(
+                                            12,
+                                          ),
                                         ),
                                       )
                                     : Text(
                                         _editCtrl.text,
                                         style: const TextStyle(
                                           fontFamily: 'Inter',
-                                          color: _DS.textPrimary,
+                                          color: AppTheme.textPrimary,
                                           fontSize: 15,
                                           height: 1.6,
                                           fontWeight: FontWeight.w400,
@@ -434,22 +490,25 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: _DS.bgTertiary,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: _DS.borderDefault),
+                              color: AppTheme.backgroundPrimary,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppTheme.borderDefault),
                             ),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.info_outline_rounded,
-                                    color: _DS.info, size: 16),
+                                const Icon(
+                                  Icons.info_outline_rounded,
+                                  color: AppTheme.infoBlue,
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     intent.reason,
                                     style: const TextStyle(
                                       fontFamily: 'Inter',
-                                      color: _DS.textTertiary,
+                                      color: AppTheme.textTertiary,
                                       fontSize: 13,
                                       height: 1.5,
                                     ),
@@ -469,7 +528,7 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                               fontFamily: 'Inter',
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: _DS.textSecondary,
+                              color: AppTheme.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -479,18 +538,25 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                             children: intent.riskFactors.map((r) {
                               return Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 5),
+                                  horizontal: 12,
+                                  vertical: 5,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: _DS.warning.withValues(alpha: 0.07),
+                                  color: AppTheme.warningOrange.withOpacity(
+                                    0.07,
+                                  ),
                                   borderRadius: BorderRadius.circular(4),
                                   border: Border.all(
-                                      color: _DS.warning.withValues(alpha: 0.3)),
+                                    color: AppTheme.warningOrange.withOpacity(
+                                      0.3,
+                                    ),
+                                  ),
                                 ),
                                 child: Text(
                                   r,
                                   style: const TextStyle(
                                     fontFamily: 'Inter',
-                                    color: _DS.warning,
+                                    color: AppTheme.warningOrange,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -510,7 +576,7 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 13,
-                                color: _DS.textTertiary,
+                                color: AppTheme.textTertiary,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -519,7 +585,7 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 13,
-                                color: _DS.textSecondary,
+                                color: AppTheme.textSecondary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -531,9 +597,10 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                           child: LinearProgressIndicator(
                             value: intent.confidence,
                             minHeight: 6,
-                            backgroundColor: _DS.bgTertiary,
-                            valueColor:
-                                const AlwaysStoppedAnimation<Color>(_DS.primary),
+                            backgroundColor: AppTheme.borderDefault,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              AppTheme.primaryBlue,
+                            ),
                           ),
                         ),
 
@@ -546,9 +613,10 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                 // ── Action Buttons (sticky bottom) ──
                 Container(
                   decoration: const BoxDecoration(
-                    color: _DS.bg,
+                    color: AppTheme.backgroundPrimary,
                     border: Border(
-                        top: BorderSide(color: _DS.borderDefault, width: 1)),
+                      top: BorderSide(color: AppTheme.borderDefault, width: 1),
+                    ),
                   ),
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                   child: Row(
@@ -563,11 +631,13 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                             icon: const Icon(Icons.edit_rounded, size: 16),
                             label: const Text('Edit Request'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: _DS.primary,
+                              foregroundColor: AppTheme.primaryBlue,
                               side: const BorderSide(
-                                  color: _DS.primary, width: 1.5),
+                                color: AppTheme.primaryBlue,
+                                width: 1.5,
+                              ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               textStyle: const TextStyle(
                                 fontFamily: 'Inter',
@@ -586,32 +656,27 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                           height: 48,
                           child: ElevatedButton.icon(
                             onPressed: () {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    'Finding workers nearby...',
-                                    style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.w500),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => WorkerListingScreen(
+                                    initialCategory: _workerCategory(),
+                                    prefillSummary: _editCtrl.text,
+                                    prefillUrgency:
+                                        widget.intent.urgency.name,
                                   ),
-                                  backgroundColor: _DS.primary,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8)),
-                                  margin: const EdgeInsets.all(16),
                                 ),
                               );
                             },
                             icon: const Icon(Icons.search_rounded, size: 18),
                             label: const Text('Find Workers'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _DS.primary,
+                              backgroundColor: AppTheme.primaryBlue,
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shadowColor: Colors.transparent,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               textStyle: const TextStyle(
                                 fontFamily: 'Inter',

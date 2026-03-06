@@ -1,45 +1,44 @@
-// ignore_for_file: unnecessary_underscores, unused_field, unused_import
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/worker_model.dart';
-import '../models/booking_model.dart';
+import '../theme/app_theme.dart';
 import '../viewmodels/workers_viewmodel.dart';
-
-// ─────────────── NEARA Design Tokens ───────────────
-class _N {
-  static const primary = Color(0xFF2563EB);
-  static const primaryLight = Color(0xFF3B82F6);
-  static const success = Color(0xFF059669);
-  static const warning = Color(0xFFEA580C);
-  static const error = Color(0xFFDC2626);
-
-  static const bg = Color(0xFFFFFFFF);
-  static const bgSecondary = Color(0xFFF9FAFB);
-  static const bgTertiary = Color(0xFFF3F4F6);
-
-  static const textPrimary = Color(0xFF111827);
-  static const textSecondary = Color(0xFF374151);
-  static const textTertiary = Color(0xFF6B7280);
-  static const textDisabled = Color(0xFF9CA3AF);
-  static const borderDefault = Color(0xFFE5E7EB);
-
-  static List<BoxShadow> get shadow1 => const [
-        BoxShadow(color: Color(0x1F000000), blurRadius: 3, offset: Offset(0, 1)),
-        BoxShadow(color: Color(0x14000000), blurRadius: 2, offset: Offset(0, 1)),
-      ];
-}
 
 // ─────────────── Worker Listing Screen ───────────────
 class WorkerListingScreen extends ConsumerStatefulWidget {
-  const WorkerListingScreen({super.key});
+  /// When pushed from the intent summary, pre-select a category and pre-fill
+  /// the booking sheet with the AI-detected data.
+  final String? initialCategory;
+  final String? prefillSummary;
+  final String? prefillUrgency;
+
+  const WorkerListingScreen({
+    super.key,
+    this.initialCategory,
+    this.prefillSummary,
+    this.prefillUrgency,
+  });
 
   @override
-  ConsumerState<WorkerListingScreen> createState() => _WorkerListingScreenState();
+  ConsumerState<WorkerListingScreen> createState() =>
+      _WorkerListingScreenState();
 }
 
 class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCategory != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref
+            .read(workersViewModelProvider.notifier)
+            .filterByCategory(widget.initialCategory!);
+      });
+    }
+  }
 
   static const _categories = [
     'All',
@@ -69,9 +68,11 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
     if (_searchQuery.isEmpty) return workers;
     final q = _searchQuery.toLowerCase();
     return workers
-        .where((w) =>
-            w.name.toLowerCase().contains(q) ||
-            w.category.toLowerCase().contains(q))
+        .where(
+          (w) =>
+              w.name.toLowerCase().contains(q) ||
+              w.category.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -82,7 +83,7 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
     final filtered = _filterWorkers(workersState.workers);
 
     return Scaffold(
-      backgroundColor: _N.bg,
+      backgroundColor: AppTheme.backgroundPrimary,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,78 +91,131 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
             // ── App Bar ──
             Container(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              color: _N.bg,
+              color: AppTheme.backgroundPrimary,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Find Workers',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: _N.textPrimary,
-                              letterSpacing: -0.4,
-                            ),
+                      // Back button (only when pushed onto nav stack)
+                      if (Navigator.canPop(context))
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
                           ),
-                          Text(
-                            '${workersState.workers.length} professionals near you',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              color: _N.textTertiary,
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: AppTheme.textSecondary,
+                            size: 20,
+                          ),
+                        ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.initialCategory != null
+                                  ? '${widget.initialCategory} Workers'
+                                  : 'Find Workers',
+                              style:
+                                  Theme.of(context).textTheme.headlineLarge,
+                            ),
+                            Text(
+                              '${workersState.workers.length} professionals near you',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => vm.loadWorkers(),
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: AppTheme.textSecondary,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // AI-intent context banner
+                  if (widget.prefillSummary != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppTheme.primaryBlue.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 13,
+                            color: AppTheme.primaryBlue,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.prefillSummary!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.primaryBlue,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      IconButton(
-                        onPressed: () => vm.loadWorkers(),
-                        icon: const Icon(Icons.refresh_rounded,
-                            color: _N.textSecondary, size: 22),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
 
                   const SizedBox(height: 16),
 
                   // ── Search Bar ──
                   Container(
-                    height: 44,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: _N.bgTertiary,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: _N.borderDefault),
+                      color: AppTheme.backgroundTertiary,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.borderDefault),
                     ),
                     child: Row(
                       children: [
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Icon(Icons.search_rounded,
-                              color: _N.textDisabled, size: 20),
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Icon(
+                            Icons.search_rounded,
+                            color: AppTheme.textDisabled,
+                            size: 20,
+                          ),
                         ),
                         Expanded(
                           child: TextField(
                             controller: _searchController,
                             onChanged: (v) => setState(() => _searchQuery = v),
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 14,
-                              color: _N.textPrimary,
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(color: AppTheme.textPrimary),
                             decoration: const InputDecoration(
                               hintText: 'Search by name or service...',
                               hintStyle: TextStyle(
-                                fontFamily: 'Inter',
-                                color: _N.textDisabled,
+                                color: AppTheme.textDisabled,
                                 fontSize: 14,
                               ),
                               border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
@@ -174,8 +228,11 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
                             },
                             child: const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Icon(Icons.close_rounded,
-                                  color: _N.textDisabled, size: 18),
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: AppTheme.textDisabled,
+                                size: 18,
+                              ),
                             ),
                           ),
                       ],
@@ -186,54 +243,65 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
 
                   // ── Category Chips ──
                   SizedBox(
-                    height: 36,
+                    height: 40,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _categories.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
                       itemBuilder: (context, i) {
                         final cat = _categories[i];
-                        final isSelected =
-                            workersState.selectedCategory == cat;
+                        final isSelected = workersState.selectedCategory == cat;
                         return GestureDetector(
                           onTap: () => vm.filterByCategory(cat),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 7),
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? _N.primary
-                                  : _N.bgSecondary,
-                              borderRadius: BorderRadius.circular(999),
+                                  ? AppTheme.primaryBlue
+                                  : AppTheme.backgroundSecondary,
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
-                                    ? _N.primary
-                                    : _N.borderDefault,
+                                    ? AppTheme.primaryBlue
+                                    : AppTheme.borderDefault,
                               ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: AppTheme.primaryBlue.withOpacity(
+                                          0.3,
+                                        ),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
                             ),
                             child: Row(
                               children: [
                                 Icon(
                                   _categoryIcons[cat] ?? Icons.build_rounded,
-                                  size: 14,
+                                  size: 16,
                                   color: isSelected
                                       ? Colors.white
-                                      : _N.textSecondary,
+                                      : AppTheme.textSecondary,
                                 ),
-                                const SizedBox(width: 5),
+                                const SizedBox(width: 6),
                                 Text(
                                   cat,
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 13,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.w400,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : _N.textSecondary,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppTheme.textSecondary,
+                                      ),
                                 ),
                               ],
                             ),
@@ -243,10 +311,8 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 12),
-
-                  // Divider
-                  const Divider(height: 1, color: _N.borderDefault),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: AppTheme.borderDefault),
                 ],
               ),
             ),
@@ -259,34 +325,35 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: _N.primary),
+                            strokeWidth: 2,
+                            color: AppTheme.primaryBlue,
+                          ),
                           SizedBox(height: 16),
-                          Text('Finding workers...',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                color: _N.textTertiary,
-                              )),
+                          Text(
+                            'Finding workers...',
+                            style: TextStyle(color: AppTheme.textTertiary),
+                          ),
                         ],
                       ),
                     )
                   : workersState.error != null
-                      ? _ErrorView(
-                          message: workersState.error!,
-                          onRetry: () => vm.loadWorkers(),
-                        )
-                      : filtered.isEmpty
-                          ? _EmptyView(
-                              category: workersState.selectedCategory,
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                              itemCount: filtered.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, i) =>
-                                  _WorkerCard(worker: filtered[i]),
-                            ),
+                  ? _ErrorView(
+                      message: workersState.error!,
+                      onRetry: () => vm.loadWorkers(),
+                    )
+                  : filtered.isEmpty
+                  ? _EmptyView(category: workersState.selectedCategory)
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, i) => _WorkerCard(
+                        worker: filtered[i],
+                        prefillCategory: workersState.selectedCategory,
+                        prefillSummary: widget.prefillSummary,
+                        prefillUrgency: widget.prefillUrgency,
+                      ),
+                    ),
             ),
           ],
         ),
@@ -298,7 +365,15 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
 // ─────────────── Worker Card ───────────────
 class _WorkerCard extends ConsumerWidget {
   final Worker worker;
-  const _WorkerCard({required this.worker});
+  final String? prefillCategory;
+  final String? prefillSummary;
+  final String? prefillUrgency;
+  const _WorkerCard({
+    required this.worker,
+    this.prefillCategory,
+    this.prefillSummary,
+    this.prefillUrgency,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -307,10 +382,16 @@ class _WorkerCard extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _N.bg,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: _N.borderDefault),
-          boxShadow: _N.shadow1,
+          color: AppTheme.backgroundPrimary,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.borderDefault),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -318,11 +399,11 @@ class _WorkerCard extends ConsumerWidget {
             Stack(
               children: [
                 Container(
-                  width: 52,
-                  height: 52,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: _N.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppTheme.primaryBlue.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Text(
@@ -330,10 +411,9 @@ class _WorkerCard extends ConsumerWidget {
                           ? worker.name[0].toUpperCase()
                           : '?',
                       style: const TextStyle(
-                        fontFamily: 'Inter',
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
-                        color: _N.primary,
+                        color: AppTheme.primaryBlue,
                       ),
                     ),
                   ),
@@ -343,13 +423,12 @@ class _WorkerCard extends ConsumerWidget {
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      width: 12,
-                      height: 12,
+                      width: 14,
+                      height: 14,
                       decoration: BoxDecoration(
-                        color: _N.success,
+                        color: AppTheme.successGreen,
                         shape: BoxShape.circle,
-                        border:
-                            Border.all(color: Colors.white, width: 2),
+                        border: Border.all(color: Colors.white, width: 2),
                       ),
                     ),
                   ),
@@ -371,18 +450,16 @@ class _WorkerCard extends ConsumerWidget {
                           worker.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: _N.textPrimary,
-                          ),
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
                       ),
                       if (worker.isVerified) ...[
                         const SizedBox(width: 4),
-                        const Icon(Icons.verified_rounded,
-                            color: _N.primary, size: 15),
+                        const Icon(
+                          Icons.verified_rounded,
+                          color: AppTheme.primaryBlue,
+                          size: 16,
+                        ),
                       ],
                     ],
                   ),
@@ -392,11 +469,7 @@ class _WorkerCard extends ConsumerWidget {
                   // Category + exp
                   Text(
                     '${worker.category} · ${worker.experienceYears}y exp',
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13,
-                      color: _N.textTertiary,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
 
                   const SizedBox(height: 8),
@@ -408,36 +481,34 @@ class _WorkerCard extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Text(
                         '${worker.totalJobs} jobs',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12,
-                          color: _N.textTertiary,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const Spacer(),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: worker.isOnline
-                              ? _N.success.withValues(alpha: 0.08)
-                              : _N.bgTertiary,
-                          borderRadius: BorderRadius.circular(4),
+                              ? AppTheme.successGreen.withOpacity(0.08)
+                              : AppTheme.backgroundTertiary,
+                          borderRadius: BorderRadius.circular(6),
                           border: Border.all(
                             color: worker.isOnline
-                                ? _N.success.withValues(alpha: 0.3)
-                                : _N.borderDefault,
+                                ? AppTheme.successGreen.withOpacity(0.3)
+                                : AppTheme.borderDefault,
                           ),
                         ),
                         child: Text(
-                          worker.isOnline ? 'Online' : 'Offline',
+                          worker.isOnline ? 'ONLINE' : 'OFFLINE',
                           style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
                             color: worker.isOnline
-                                ? _N.success
-                                : _N.textDisabled,
+                                ? AppTheme.successGreen
+                                : AppTheme.textDisabled,
                           ),
                         ),
                       ),
@@ -450,21 +521,28 @@ class _WorkerCard extends ConsumerWidget {
             const SizedBox(width: 8),
 
             // Book arrow
-            Icon(Icons.arrow_forward_ios_rounded,
-                color: _N.textDisabled, size: 14),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: AppTheme.textDisabled,
+              size: 14,
+            ),
           ],
         ),
       ),
     );
   }
 
-  void _showWorkerDetails(
-      BuildContext context, WidgetRef ref, Worker worker) {
+  void _showWorkerDetails(BuildContext context, WidgetRef ref, Worker worker) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => BookingBottomSheet(worker: worker),
+      builder: (_) => BookingBottomSheet(
+        worker: worker,
+        prefillCategory: prefillCategory,
+        prefillSummary: prefillSummary,
+        prefillUrgency: prefillUrgency,
+      ),
     );
   }
 }
@@ -479,15 +557,14 @@ class _RatingChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 14),
-        const SizedBox(width: 3),
+        const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+        const SizedBox(width: 4),
         Text(
           rating.toStringAsFixed(1),
           style: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: _N.textSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textSecondary,
           ),
         ),
       ],
@@ -509,38 +586,33 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded,
-                color: _N.textDisabled, size: 48),
+            const Icon(
+              Icons.wifi_off_rounded,
+              color: AppTheme.textDisabled,
+              size: 48,
+            ),
             const SizedBox(height: 16),
             Text(
               'Could not load workers',
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: _N.textSecondary,
-              ),
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  color: _N.textTertiary,
-                )),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded, size: 16),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _N.primary,
+                backgroundColor: AppTheme.primaryBlue,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6)),
-                textStyle: const TextStyle(
-                    fontFamily: 'Inter', fontWeight: FontWeight.w600),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -561,25 +633,20 @@ class _EmptyView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.search_off_rounded,
-              color: _N.textDisabled, size: 48),
+          const Icon(
+            Icons.search_off_rounded,
+            color: AppTheme.textDisabled,
+            size: 48,
+          ),
           const SizedBox(height: 16),
           Text(
             'No $category workers found',
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: _N.textSecondary,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Try a different category',
-            style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 13,
-                color: _N.textTertiary),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
@@ -614,8 +681,7 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _summaryCtrl = TextEditingController(
-        text: widget.prefillSummary ?? '');
+    _summaryCtrl = TextEditingController(text: widget.prefillSummary ?? '');
     _urgency = widget.prefillUrgency ?? 'medium';
   }
 
@@ -630,10 +696,11 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please describe the issue'),
-          backgroundColor: _N.warning,
+          backgroundColor: AppTheme.warningOrange,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -664,8 +731,8 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
       builder: (_, controller) {
         return Container(
           decoration: const BoxDecoration(
-            color: _N.bg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            color: AppTheme.backgroundPrimary,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [
@@ -676,7 +743,7 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                   width: 32,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: _N.borderDefault,
+                    color: AppTheme.gray300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -696,8 +763,8 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                                 width: 48,
                                 height: 48,
                                 decoration: BoxDecoration(
-                                  color: _N.primary.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: AppTheme.primaryBlue.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Center(
                                   child: Text(
@@ -705,10 +772,9 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                                         ? widget.worker.name[0].toUpperCase()
                                         : '?',
                                     style: const TextStyle(
-                                      fontFamily: 'Inter',
                                       fontSize: 20,
                                       fontWeight: FontWeight.w700,
-                                      color: _N.primary,
+                                      color: AppTheme.primaryBlue,
                                     ),
                                   ),
                                 ),
@@ -718,28 +784,31 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(children: [
-                                      Text(widget.worker.name,
-                                          style: const TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: _N.textPrimary,
-                                          )),
-                                      if (widget.worker.isVerified)
-                                        const Padding(
-                                          padding: EdgeInsets.only(left: 4),
-                                          child: Icon(Icons.verified_rounded,
-                                              color: _N.primary, size: 15),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          widget.worker.name,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.headlineMedium,
                                         ),
-                                    ]),
+                                        if (widget.worker.isVerified)
+                                          const Padding(
+                                            padding: EdgeInsets.only(left: 4),
+                                            child: Icon(
+                                              Icons.verified_rounded,
+                                              color: AppTheme.primaryBlue,
+                                              size: 16,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                     Text(
-                                        '${widget.worker.category} · ${widget.worker.experienceYears}y exp',
-                                        style: const TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 13,
-                                          color: _N.textTertiary,
-                                        )),
+                                      '${widget.worker.category} · ${widget.worker.experienceYears}y exp',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -748,26 +817,24 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                           ),
 
                           const SizedBox(height: 20),
-                          const Divider(color: _N.borderDefault),
+                          const Divider(color: AppTheme.borderDefault),
                           const SizedBox(height: 16),
 
                           // Heading
                           const Text(
                             'Send Booking Request',
                             style: TextStyle(
-                              fontFamily: 'Inter',
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              color: _N.textPrimary,
+                              color: AppTheme.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
                           const Text(
                             'Describe your issue and we\'ll notify the worker.',
                             style: TextStyle(
-                              fontFamily: 'Inter',
                               fontSize: 13,
-                              color: _N.textTertiary,
+                              color: AppTheme.textTertiary,
                               height: 1.5,
                             ),
                           ),
@@ -778,10 +845,9 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                           const Text(
                             'Describe the issue',
                             style: TextStyle(
-                              fontFamily: 'Inter',
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: _N.textSecondary,
+                              color: AppTheme.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -789,36 +855,38 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                             controller: _summaryCtrl,
                             maxLines: 4,
                             style: const TextStyle(
-                              fontFamily: 'Inter',
                               fontSize: 14,
-                              color: _N.textPrimary,
+                              color: AppTheme.textPrimary,
                               height: 1.5,
                             ),
                             decoration: InputDecoration(
                               hintText:
                                   'e.g. Water pipe leaking under the sink...',
                               hintStyle: const TextStyle(
-                                fontFamily: 'Inter',
-                                color: _N.textDisabled,
+                                color: AppTheme.textDisabled,
                                 fontSize: 14,
                               ),
                               filled: true,
-                              fillColor: _N.bgTertiary,
+                              fillColor: AppTheme.backgroundTertiary,
                               contentPadding: const EdgeInsets.all(12),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                    color: _N.borderDefault),
+                                  color: AppTheme.borderDefault,
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                    color: _N.borderDefault),
+                                  color: AppTheme.borderDefault,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                    color: _N.primary, width: 1.5),
+                                  color: AppTheme.primaryBlue,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           ),
@@ -829,57 +897,52 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                           const Text(
                             'Urgency',
                             style: TextStyle(
-                              fontFamily: 'Inter',
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: _N.textSecondary,
+                              color: AppTheme.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 10),
                           Row(
-                            children:
-                                ['low', 'medium', 'high'].map((u) {
+                            children: ['low', 'medium', 'high'].map((u) {
                               final isSelected = _urgency == u;
                               final color = u == 'high'
-                                  ? _N.error
+                                  ? AppTheme.errorRed
                                   : u == 'medium'
-                                      ? _N.warning
-                                      : _N.success;
+                                  ? AppTheme.warningOrange
+                                  : AppTheme.successGreen;
                               return Expanded(
                                 child: GestureDetector(
-                                  onTap: () =>
-                                      setState(() => _urgency = u),
+                                  onTap: () => setState(() => _urgency = u),
                                   child: AnimatedContainer(
-                                    duration:
-                                        const Duration(milliseconds: 180),
+                                    duration: const Duration(milliseconds: 180),
                                     margin: EdgeInsets.only(
-                                        right: u != 'high' ? 8 : 0),
+                                      right: u != 'high' ? 8 : 0,
+                                    ),
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 10),
+                                      vertical: 10,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? color.withValues(alpha: 0.1)
-                                          : _N.bgSecondary,
-                                      borderRadius:
-                                          BorderRadius.circular(6),
+                                          ? color.withOpacity(0.1)
+                                          : AppTheme.backgroundSecondary,
+                                      borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: isSelected
-                                            ? color.withValues(alpha: 0.6)
-                                            : _N.borderDefault,
+                                            ? color.withOpacity(0.6)
+                                            : AppTheme.borderDefault,
                                         width: isSelected ? 1.5 : 1,
                                       ),
                                     ),
                                     child: Center(
                                       child: Text(
-                                        u[0].toUpperCase() +
-                                            u.substring(1),
+                                        u[0].toUpperCase() + u.substring(1),
                                         style: TextStyle(
-                                          fontFamily: 'Inter',
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           color: isSelected
                                               ? color
-                                              : _N.textTertiary,
+                                              : AppTheme.textTertiary,
                                         ),
                                       ),
                                     ),
@@ -895,22 +958,24 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: _N.bgTertiary,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: _N.borderDefault),
+                              color: AppTheme.backgroundTertiary,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppTheme.borderDefault),
                             ),
                             child: Row(
                               children: const [
-                                Icon(Icons.info_outline_rounded,
-                                    color: Color(0xFF0284C7), size: 16),
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  color: Color(0xFF0284C7),
+                                  size: 16,
+                                ),
                                 SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     'Worker will confirm price after reviewing your request.',
                                     style: TextStyle(
-                                      fontFamily: 'Inter',
                                       fontSize: 12,
-                                      color: _N.textTertiary,
+                                      color: AppTheme.textTertiary,
                                       height: 1.4,
                                     ),
                                   ),
@@ -926,35 +991,33 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                             width: double.infinity,
                             height: 48,
                             child: ElevatedButton.icon(
-                              onPressed: bookingState.status ==
-                                      BookingStatus.loading
+                              onPressed:
+                                  bookingState.status == BookingStatus.loading
                                   ? null
                                   : _submit,
-                              icon: bookingState.status ==
-                                      BookingStatus.loading
+                              icon: bookingState.status == BookingStatus.loading
                                   ? const SizedBox(
                                       width: 16,
                                       height: 16,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white),
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
                                     )
-                                  : const Icon(
-                                      Icons.send_rounded, size: 18),
+                                  : const Icon(Icons.send_rounded, size: 18),
                               label: Text(
-                                bookingState.status ==
-                                        BookingStatus.loading
+                                bookingState.status == BookingStatus.loading
                                     ? 'Sending...'
                                     : 'Send Request',
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _N.primary,
+                                backgroundColor: AppTheme.primaryBlue,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6)),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 textStyle: const TextStyle(
-                                  fontFamily: 'Inter',
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -962,22 +1025,21 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                             ),
                           ),
 
-                          if (bookingState.status ==
-                              BookingStatus.error) ...[
+                          if (bookingState.status == BookingStatus.error) ...[
                             const SizedBox(height: 12),
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: _N.error.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(6),
+                                color: AppTheme.errorRed.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                    color: _N.error.withValues(alpha: 0.3)),
+                                  color: AppTheme.errorRed.withOpacity(0.3),
+                                ),
                               ),
                               child: Text(
                                 bookingState.error ?? 'Booking failed',
                                 style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  color: _N.error,
+                                  color: AppTheme.errorRed,
                                   fontSize: 13,
                                 ),
                               ),
@@ -1010,20 +1072,22 @@ class _SuccessView extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: _N.success.withValues(alpha: 0.1),
+              color: AppTheme.successGreen.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_circle_rounded,
-                color: _N.success, size: 40),
+            child: const Icon(
+              Icons.check_circle_rounded,
+              color: AppTheme.successGreen,
+              size: 40,
+            ),
           ),
           const SizedBox(height: 20),
           const Text(
             'Request Sent!',
             style: TextStyle(
-              fontFamily: 'Inter',
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: _N.textPrimary,
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 10),
@@ -1031,9 +1095,8 @@ class _SuccessView extends StatelessWidget {
             'Your booking request has been sent to ${worker.name}.\nYou\'ll be notified once they accept.',
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontFamily: 'Inter',
               fontSize: 14,
-              color: _N.textTertiary,
+              color: AppTheme.textTertiary,
               height: 1.6,
             ),
           ),
@@ -1041,22 +1104,24 @@ class _SuccessView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _N.bgSecondary,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _N.borderDefault),
+              color: AppTheme.backgroundSecondary,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.borderDefault),
             ),
             child: Row(
               children: [
-                const Icon(Icons.schedule_rounded,
-                    color: _N.textTertiary, size: 18),
+                const Icon(
+                  Icons.schedule_rounded,
+                  color: AppTheme.textTertiary,
+                  size: 18,
+                ),
                 const SizedBox(width: 10),
                 const Expanded(
                   child: Text(
                     'Typical response time: 5–15 minutes',
                     style: TextStyle(
-                      fontFamily: 'Inter',
                       fontSize: 13,
-                      color: _N.textSecondary,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                 ),
@@ -1070,12 +1135,11 @@ class _SuccessView extends StatelessWidget {
             child: OutlinedButton(
               onPressed: () => Navigator.pop(context),
               style: OutlinedButton.styleFrom(
-                foregroundColor: _N.primary,
-                side: const BorderSide(color: _N.primary, width: 1.5),
+                foregroundColor: AppTheme.primaryBlue,
+                side: const BorderSide(color: AppTheme.primaryBlue, width: 1.5),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6)),
-                textStyle: const TextStyle(
-                    fontFamily: 'Inter', fontWeight: FontWeight.w600),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: const Text('Done'),
             ),

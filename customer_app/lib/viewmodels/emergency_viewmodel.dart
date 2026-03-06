@@ -53,7 +53,6 @@ class EmergencyViewModel extends Notifier<SosState> {
     try {
       final stt = ref.read(_sosSttServiceProvider);
       await stt.startListening(
-        localeId: 'en-IN',
         onResult: (words) {
           _lastWords = words;
           if (state is SosListening) {

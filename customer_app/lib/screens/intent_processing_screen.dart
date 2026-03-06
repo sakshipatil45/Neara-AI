@@ -1,23 +1,5 @@
-// ignore_for_file: unnecessary_underscores, unused_field, dead_code
 import 'package:flutter/material.dart';
-
-// ─────────────── NEARA Design Tokens ───────────────
-class _DS {
-  static const primary = Color(0xFF2563EB);
-  static const primaryLight = Color(0xFF3B82F6);
-  static const success = Color(0xFF059669);
-  static const bg = Color(0xFFFFFFFF);
-  static const bgSecondary = Color(0xFFF9FAFB);
-  static const bgTertiary = Color(0xFFF3F4F6);
-  static const textPrimary = Color(0xFF111827);
-  static const textSecondary = Color(0xFF374151);
-  static const textTertiary = Color(0xFF6B7280);
-  static const textDisabled = Color(0xFF9CA3AF);
-  static const borderDefault = Color(0xFFE5E7EB);
-  static const gray200 = Color(0xFFE5E7EB);
-  static const gray300 = Color(0xFFD1D5DB);
-  static const gray100 = Color(0xFFF3F4F6);
-}
+import '../theme/app_theme.dart';
 
 class IntentProcessingScreen extends StatefulWidget {
   const IntentProcessingScreen({super.key});
@@ -38,10 +20,22 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
 
   final List<ProcessStepItem> steps = const [
     ProcessStepItem(icon: Icons.mic_rounded, label: 'Voice captured'),
-    ProcessStepItem(icon: Icons.translate_rounded, label: 'Transcribing audio...'),
-    ProcessStepItem(icon: Icons.psychology_rounded, label: 'Analyzing intent...'),
-    ProcessStepItem(icon: Icons.category_rounded, label: 'Identifying service type...'),
-    ProcessStepItem(icon: Icons.summarize_rounded, label: 'Generating summary...'),
+    ProcessStepItem(
+      icon: Icons.translate_rounded,
+      label: 'Transcribing audio...',
+    ),
+    ProcessStepItem(
+      icon: Icons.psychology_rounded,
+      label: 'Analyzing intent...',
+    ),
+    ProcessStepItem(
+      icon: Icons.category_rounded,
+      label: 'Identifying service type...',
+    ),
+    ProcessStepItem(
+      icon: Icons.summarize_rounded,
+      label: 'Generating summary...',
+    ),
   ];
 
   @override
@@ -91,7 +85,7 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _DS.bg,
+      backgroundColor: AppTheme.backgroundPrimary,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnim,
@@ -99,9 +93,6 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 48),
-
-
-
 
               const Spacer(),
 
@@ -121,7 +112,7 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: _DS.primary.withValues(alpha: 0.10),
+                              color: AppTheme.primaryBlue.withOpacity(0.10),
                               width: 1.5,
                             ),
                           ),
@@ -136,7 +127,7 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: _DS.primary.withValues(alpha: 0.18),
+                              color: AppTheme.primaryBlue.withOpacity(0.18),
                               width: 1.5,
                             ),
                           ),
@@ -148,20 +139,23 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
                         height: 80,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [_DS.primary, _DS.primaryLight],
+                            colors: [
+                              AppTheme.primaryBlue,
+                              AppTheme.primaryBlue.withOpacity(0.8),
+                            ],
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: _DS.primary.withValues(alpha: 0.35),
+                              color: AppTheme.primaryBlue.withOpacity(0.35),
                               blurRadius: 20,
                               spreadRadius: 2,
                               offset: const Offset(0, 6),
                             ),
                             BoxShadow(
-                              color: _DS.primary.withValues(alpha: 0.18),
+                              color: AppTheme.primaryBlue.withOpacity(0.18),
                               blurRadius: 6,
                               offset: const Offset(0, 6),
                             ),
@@ -183,23 +177,17 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
               // ── Heading ──
               Text(
                 'Analyzing Your Request',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: _DS.textPrimary,
-                  letterSpacing: -0.3,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Our AI is understanding your situation',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: _DS.textTertiary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
               ),
 
               const SizedBox(height: 48),
@@ -209,11 +197,10 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: _DS.bgSecondary,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _DS.borderDefault),
-                  // Level 1 shadow
-                  boxShadow: const [
+                  color: AppTheme.backgroundSecondary,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.borderDefault),
+                  boxShadow: [
                     BoxShadow(
                       color: Color(0x1E000000),
                       blurRadius: 3,
@@ -244,31 +231,40 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: isDone
-                                  ? _DS.success
+                                  ? AppTheme.statusSuccess
                                   : isActive
-                                      ? _DS.primary
-                                      : _DS.bgTertiary,
+                                  ? AppTheme.primaryBlue
+                                  : AppTheme.backgroundSecondary,
                               border: isActive
-                                  ? Border.all(color: _DS.primaryLight, width: 2)
+                                  ? Border.all(
+                                      color: AppTheme.primaryBlue.withOpacity(
+                                        0.3,
+                                      ),
+                                      width: 2,
+                                    )
                                   : null,
                             ),
                             child: Center(
                               child: isDone
-                                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                                  ? const Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.white,
+                                      size: 16,
+                                    )
                                   : isActive
-                                      ? const SizedBox(
-                                          width: 14,
-                                          height: 14,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : Icon(
-                                          steps[index].icon,
-                                          color: _DS.textDisabled,
-                                          size: 15,
-                                        ),
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Icon(
+                                      steps[index].icon,
+                                      color: AppTheme.textDisabled,
+                                      size: 15,
+                                    ),
                             ),
                           ),
 
@@ -278,25 +274,32 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
                           Expanded(
                             child: AnimatedDefaultTextStyle(
                               duration: const Duration(milliseconds: 250),
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14,
-                                height: 1.5,
-                                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                                color: isDone
-                                    ? _DS.success
-                                    : isActive
-                                        ? _DS.textPrimary
-                                        : _DS.textDisabled,
-                              ),
+                              style:
+                                  Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.copyWith(
+                                    height: 1.5,
+                                    fontWeight: isActive
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    color: isDone
+                                        ? AppTheme.statusSuccess
+                                        : isActive
+                                        ? AppTheme.textPrimary
+                                        : AppTheme.textDisabled,
+                                  ) ??
+                                  const TextStyle(),
                               child: Text(steps[index].label),
                             ),
                           ),
 
                           // Right indicator
                           if (isDone)
-                            const Icon(Icons.check_circle_rounded,
-                                color: Color(0xFF059669), size: 16),
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: Color(0xFF059669),
+                              size: 16,
+                            ),
                         ],
                       ),
                     );
@@ -311,10 +314,8 @@ class _IntentProcessingScreenState extends State<IntentProcessingScreen>
                 padding: const EdgeInsets.only(bottom: 32),
                 child: Text(
                   'Powered by AI · Multilingual Support',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12,
-                    color: _DS.textDisabled,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textDisabled,
                     letterSpacing: 0.3,
                   ),
                 ),

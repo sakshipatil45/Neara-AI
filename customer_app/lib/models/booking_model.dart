@@ -67,11 +67,12 @@ class BookingRequest {
 
   Color get statusColor {
     switch (status.toUpperCase()) {
+      case 'PENDING':
       case 'CREATED':
-      case 'MATCHING':
-        return const Color(0xFF2563EB); // Primary Blue
-      case 'PROPOSAL_SENT':
         return const Color(0xFFEA580C); // Warning Orange
+      case 'MATCHING':
+      case 'PROPOSAL_SENT':
+        return const Color(0xFF2563EB); // Primary Blue
       case 'PROPOSAL_ACCEPTED':
       case 'ADVANCE_PAID':
       case 'WORKER_COMING':
@@ -87,6 +88,7 @@ class BookingRequest {
 
   String get statusText {
     switch (status.toUpperCase()) {
+      case 'PENDING': return 'Pending';
       case 'CREATED': return 'Finding Worker';
       case 'MATCHING': return 'Matching';
       case 'PROPOSAL_SENT': return 'Offer Received';

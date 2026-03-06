@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../viewmodels/my_bookings_viewmodel.dart';
 import '../models/booking_model.dart';
 import '../models/proposal_model.dart';
+import '../theme/app_theme.dart';
+import '../viewmodels/my_bookings_viewmodel.dart';
 
 class BookingDetailsScreen extends ConsumerWidget {
   final int requestId;
@@ -15,43 +16,55 @@ class BookingDetailsScreen extends ConsumerWidget {
     final booking = state.booking;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: AppTheme.backgroundSecondary,
       appBar: AppBar(
         title: const Text('Booking Details'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.backgroundPrimary,
         elevation: 0,
+        centerTitle: false,
       ),
       body: state.isLoading && booking == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue),
+            )
           : booking == null
-              ? const Center(child: Text('Booking not found', style: TextStyle(color: Colors.white)))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(booking),
-                      const SizedBox(height: 32),
-                      _buildTimeline(context, booking.status),
-                      const SizedBox(height: 32),
-                      if (state.proposals.isNotEmpty && 
-                          (booking.status == 'CREATED' || booking.status == 'MATCHING' || booking.status == 'PROPOSAL_SENT'))
-                        _buildProposalsSection(context, ref, state.proposals),
-                      if (booking.workerName != null)
-                        _buildWorkerInfo(booking),
-                    ],
-                  ),
-                ),
+          ? const Center(child: Text('Booking not found'))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, booking),
+                  const SizedBox(height: 32),
+                  _buildTimeline(context, booking.status),
+                  const SizedBox(height: 32),
+                  if (state.proposals.isNotEmpty &&
+                      (booking.status == 'CREATED' ||
+                          booking.status == 'MATCHING' ||
+                          booking.status == 'PROPOSAL_SENT'))
+                    _buildProposalsSection(context, ref, state.proposals),
+                  if (booking.workerName != null)
+                    _buildWorkerInfo(context, booking),
+                ],
+              ),
+            ),
     );
   }
 
-  Widget _buildHeader(BookingRequest booking) {
+  Widget _buildHeader(BuildContext context, BookingRequest booking) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        color: AppTheme.backgroundPrimary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderDefault),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,20 +75,29 @@ class BookingDetailsScreen extends ConsumerWidget {
               Text(
                 booking.serviceCategory.toUpperCase(),
                 style: const TextStyle(
-                  color: Color(0xFF2563EB),
-                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryBlue,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
                   letterSpacing: 1.2,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: booking.statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: booking.statusColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  booking.statusText,
-                  style: TextStyle(color: booking.statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+                  booking.statusText.toUpperCase(),
+                  style: TextStyle(
+                    color: booking.statusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
@@ -83,16 +105,20 @@ class BookingDetailsScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           Text(
             booking.issueSummary,
-            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.headlineLarge,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.access_time, size: 16, color: Colors.white38),
-              const SizedBox(width: 4),
+              const Icon(
+                Icons.access_time_rounded,
+                size: 16,
+                color: AppTheme.textTertiary,
+              ),
+              const SizedBox(width: 6),
               Text(
-                'Urgency: ${booking.urgency}',
-                style: const TextStyle(color: Colors.white38, fontSize: 14),
+                'Urgency: ${booking.urgency.toUpperCase()}',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
@@ -108,7 +134,7 @@ class BookingDetailsScreen extends ConsumerWidget {
       'PROPOSAL_ACCEPTED',
       'WORKER_COMING',
       'SERVICE_STARTED',
-      'SERVICE_COMPLETED'
+      'SERVICE_COMPLETED',
     ];
 
     int currentIndex = stages.indexOf(currentStatus.toUpperCase());
@@ -117,9 +143,9 @@ class BookingDetailsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Service Progress',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 24),
         ListView.builder(
@@ -129,7 +155,7 @@ class BookingDetailsScreen extends ConsumerWidget {
           itemBuilder: (context, index) {
             final isCompleted = index < currentIndex;
             final isCurrent = index == currentIndex;
-            
+
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -140,18 +166,28 @@ class BookingDetailsScreen extends ConsumerWidget {
                       height: 24,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isCompleted || isCurrent ? const Color(0xFF2563EB) : Colors.white12,
-                        border: isCurrent ? Border.all(color: Colors.white, width: 2) : null,
+                        color: isCompleted || isCurrent
+                            ? AppTheme.primaryBlue
+                            : AppTheme.gray200,
+                        border: isCurrent
+                            ? Border.all(color: Colors.white, width: 2)
+                            : null,
                       ),
                       child: isCompleted
-                          ? const Icon(Icons.check, size: 14, color: Colors.white)
+                          ? const Icon(
+                              Icons.check,
+                              size: 14,
+                              color: Colors.white,
+                            )
                           : null,
                     ),
                     if (index < stages.length - 1)
                       Container(
                         width: 2,
                         height: 40,
-                        color: isCompleted ? const Color(0xFF2563EB) : Colors.white12,
+                        color: isCompleted
+                            ? AppTheme.primaryBlue
+                            : AppTheme.gray200,
                       ),
                   ],
                 ),
@@ -162,17 +198,24 @@ class BookingDetailsScreen extends ConsumerWidget {
                     children: [
                       Text(
                         _stageToLabel(stages[index]),
-                        style: TextStyle(
-                          color: isCompleted || isCurrent ? Colors.white : Colors.white24,
-                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 15,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: isCompleted || isCurrent
+                              ? AppTheme.textPrimary
+                              : AppTheme.textDisabled,
+                          fontWeight: isCurrent
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                         ),
                       ),
                       const SizedBox(height: 4),
                       if (isCurrent)
                         Text(
                           'Currently here',
-                          style: TextStyle(color: const Color(0xFF2563EB).withOpacity(0.7), fontSize: 12),
+                          style: TextStyle(
+                            color: AppTheme.primaryBlue.withOpacity(0.8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       const SizedBox(height: 16),
                     ],
@@ -188,41 +231,70 @@ class BookingDetailsScreen extends ConsumerWidget {
 
   String _stageToLabel(String stage) {
     switch (stage) {
-      case 'CREATED': return 'Finding Worker';
-      case 'PROPOSAL_SENT': return 'Worker Proposals';
-      case 'PROPOSAL_ACCEPTED': return 'Worker Assigned';
-      case 'WORKER_COMING': return 'Worker is on the way';
-      case 'SERVICE_STARTED': return 'Task in progress';
-      case 'SERVICE_COMPLETED': return 'Completed';
-      default: return stage;
+      case 'CREATED':
+        return 'Finding Worker';
+      case 'PROPOSAL_SENT':
+        return 'Worker Proposals';
+      case 'PROPOSAL_ACCEPTED':
+        return 'Worker Assigned';
+      case 'WORKER_COMING':
+        return 'Worker is on the way';
+      case 'SERVICE_STARTED':
+        return 'Task in progress';
+      case 'SERVICE_COMPLETED':
+        return 'Completed';
+      default:
+        return stage;
     }
   }
 
-  Widget _buildProposalsSection(BuildContext context, WidgetRef ref, List<Proposal> proposals) {
+  Widget _buildProposalsSection(
+    BuildContext context,
+    WidgetRef ref,
+    List<Proposal> proposals,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Received Offers',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 16),
-        ...proposals.map((p) => _ProposalCard(proposal: p, onAccept: () {
-          ref.read(bookingDetailsViewModelProvider(requestId).notifier).respondToProposal(p.id, 'ACCEPTED');
-        }, onReject: () {
-          ref.read(bookingDetailsViewModelProvider(requestId).notifier).respondToProposal(p.id, 'REJECTED');
-        })),
+        ...proposals.map(
+          (p) => _ProposalCard(
+            proposal: p,
+            onAccept: () {
+              ref
+                  .read(bookingDetailsViewModelProvider(requestId).notifier)
+                  .respondToProposal(p.id, 'ACCEPTED');
+            },
+            onReject: () {
+              ref
+                  .read(bookingDetailsViewModelProvider(requestId).notifier)
+                  .respondToProposal(p.id, 'REJECTED');
+            },
+          ),
+        ),
         const SizedBox(height: 32),
       ],
     );
   }
 
-  Widget _buildWorkerInfo(BookingRequest booking) {
+  Widget _buildWorkerInfo(BuildContext context, BookingRequest booking) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(24),
+        color: AppTheme.backgroundPrimary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderDefault),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -230,10 +302,17 @@ class BookingDetailsScreen extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundImage: booking.workerProfileImage != null 
-                    ? NetworkImage(booking.workerProfileImage!) 
+                backgroundColor: AppTheme.backgroundTertiary,
+                backgroundImage: booking.workerProfileImage != null
+                    ? NetworkImage(booking.workerProfileImage!)
                     : null,
-                child: booking.workerProfileImage == null ? const Icon(Icons.person) : null,
+                child: booking.workerProfileImage == null
+                    ? const Icon(
+                        Icons.person,
+                        size: 30,
+                        color: AppTheme.textDisabled,
+                      )
+                    : null,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -242,15 +321,21 @@ class BookingDetailsScreen extends ConsumerWidget {
                   children: [
                     Text(
                       booking.workerName ?? 'Worker',
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.headlineLarge,
                     ),
-                    const Text('Assigned Expert', style: TextStyle(color: Colors.white60, fontSize: 14)),
+                    Text(
+                      'Assigned Expert',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: () {}, // Chat/Call functionality
-                icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF2563EB)),
+                icon: const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: AppTheme.primaryBlue,
+                ),
               ),
             ],
           ),
@@ -265,7 +350,11 @@ class _ProposalCard extends StatelessWidget {
   final VoidCallback onAccept;
   final VoidCallback onReject;
 
-  const _ProposalCard({required this.proposal, required this.onAccept, required this.onReject});
+  const _ProposalCard({
+    required this.proposal,
+    required this.onAccept,
+    required this.onReject,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -273,9 +362,16 @@ class _ProposalCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: AppTheme.backgroundPrimary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.1)),
+        border: Border.all(color: AppTheme.primaryBlue.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryBlue.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,27 +379,47 @@ class _ProposalCard extends StatelessWidget {
           Row(
             children: [
               const CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.white10,
-                child: Icon(Icons.person, size: 14, color: Colors.white54),
+                radius: 14,
+                backgroundColor: AppTheme.backgroundSecondary,
+                child: Icon(
+                  Icons.person_rounded,
+                  size: 16,
+                  color: AppTheme.textDisabled,
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Text(
                 proposal.workerName ?? 'Worker Offer',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
               const Spacer(),
-              const Icon(Icons.star, color: Colors.amber, size: 14),
+              const Icon(
+                Icons.star_rounded,
+                color: Color(0xFFF59E0B),
+                size: 16,
+              ),
               const SizedBox(width: 4),
-              Text(proposal.workerRating ?? '4.5', style: const TextStyle(color: Colors.white70)),
+              Text(
+                proposal.workerRating ?? '4.5',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          _PriceRow(label: 'Inspection Fee', value: '₹${proposal.inspectionFee.toStringAsFixed(0)}'),
-          _PriceRow(label: 'Estimated Cost', value: '₹${proposal.serviceCost.toStringAsFixed(0)}'),
-          const Divider(color: Colors.white10, height: 24),
           _PriceRow(
-            label: 'Total Estimate', 
+            label: 'Inspection Fee',
+            value: '₹${proposal.inspectionFee.toStringAsFixed(0)}',
+          ),
+          _PriceRow(
+            label: 'Estimated Cost',
+            value: '₹${proposal.serviceCost.toStringAsFixed(0)}',
+          ),
+          const Divider(color: AppTheme.borderDefault, height: 24),
+          _PriceRow(
+            label: 'Total Estimate',
             value: '₹${proposal.totalEstimate.toStringAsFixed(0)}',
             isBold: true,
           ),
@@ -314,9 +430,11 @@ class _ProposalCard extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onReject,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    foregroundColor: AppTheme.textSecondary,
+                    side: const BorderSide(color: AppTheme.borderDefault),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text('Reject'),
                 ),
@@ -326,8 +444,12 @@ class _ProposalCard extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onAccept,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    backgroundColor: AppTheme.primaryBlue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text('Accept Offer'),
                 ),
@@ -345,7 +467,11 @@ class _PriceRow extends StatelessWidget {
   final String value;
   final bool isBold;
 
-  const _PriceRow({required this.label, required this.value, this.isBold = false});
+  const _PriceRow({
+    required this.label,
+    required this.value,
+    this.isBold = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -354,13 +480,20 @@ class _PriceRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: isBold ? Colors.white70 : Colors.white38, fontSize: 14)),
           Text(
-            value, 
+            label,
             style: TextStyle(
-              color: Colors.white, 
-              fontSize: 16, 
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: isBold ? AppTheme.textPrimary : AppTheme.textSecondary,
+              fontSize: 14,
+              fontWeight: isBold ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: isBold ? AppTheme.primaryBlue : AppTheme.textPrimary,
+              fontSize: 16,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ],

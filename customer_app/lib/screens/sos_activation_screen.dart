@@ -321,7 +321,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: _kRed.withValues(alpha: 0.5),
+                        color: _kRed.withOpacity(0.5),
                         blurRadius: 28,
                         spreadRadius: 4,
                       ),
@@ -363,7 +363,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
             height: 190,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _kRed.withValues(alpha: 0.12),
+              color: _kRed.withOpacity(0.12),
             ),
           ),
           // Button
@@ -378,7 +378,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
               ),
               boxShadow: [
                 BoxShadow(
-                  color: _kRed.withValues(alpha: 0.5),
+                  color: _kRed.withOpacity(0.5),
                   blurRadius: 32,
                   spreadRadius: 4,
                 ),
@@ -463,7 +463,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white12),
       ),
@@ -535,9 +535,9 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _kRed.withValues(alpha: 0.15),
+            color: _kRed.withOpacity(0.15),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _kRed.withValues(alpha: 0.4)),
+            border: Border.all(color: _kRed.withOpacity(0.4)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -570,7 +570,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: Colors.white.withOpacity(0.06),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: Colors.white12),
           ),
@@ -640,7 +640,7 @@ class _SosContactRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.07),
+        color: Colors.white.withOpacity(0.07),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white12),
       ),
@@ -651,7 +651,7 @@ class _SosContactRow extends StatelessWidget {
             height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _kRed.withValues(alpha: 0.25),
+              color: _kRed.withOpacity(0.25),
             ),
             child: Center(
               child: Text(
@@ -683,7 +683,7 @@ class _SosContactRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _kRed.withValues(alpha: 0.2),
+              color: _kRed.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.call, color: _kRed, size: 16),

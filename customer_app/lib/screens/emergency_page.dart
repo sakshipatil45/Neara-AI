@@ -163,7 +163,7 @@ class _EmergencyPageState extends State<EmergencyPage>
                             height: 190,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _kRed.withValues(alpha: 0.08),
+                              color: _kRed.withOpacity(0.08),
                             ),
                           ),
                           // Middle ring
@@ -172,7 +172,7 @@ class _EmergencyPageState extends State<EmergencyPage>
                             height: 164,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _kRed.withValues(alpha: 0.15),
+                              color: _kRed.withOpacity(0.15),
                             ),
                           ),
                           // Core button
@@ -187,7 +187,7 @@ class _EmergencyPageState extends State<EmergencyPage>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _kRed.withValues(alpha: 0.45),
+                                  color: _kRed.withOpacity(0.45),
                                   blurRadius: 24,
                                   spreadRadius: 2,
                                 ),
@@ -310,7 +310,7 @@ class _ContactCard extends StatelessWidget {
         border: Border.all(color: _kBorderDefault),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),

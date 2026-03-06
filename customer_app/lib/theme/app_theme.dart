@@ -12,6 +12,11 @@ class AppTheme {
   static const Color errorRed = Color(0xFFDC2626);
   static const Color infoBlue = Color(0xFF0284C7);
 
+  // Semantic status aliases
+  static const Color statusSuccess = successGreen;
+  static const Color statusWarning = warningOrange;
+  static const Color statusError = errorRed;
+
   // Neutral Scale
   static const Color gray50 = Color(0xFFF9FAFB);
   static const Color gray100 = Color(0xFFF3F4F6);

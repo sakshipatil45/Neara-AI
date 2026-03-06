@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/ai_intent_service.dart';
 import '../services/stt_service.dart';
@@ -26,30 +27,64 @@ class IntentError extends IntentState {
   IntentError(this.message);
 }
 
+/// Shown when recording stopped but no speech was detected.
+class IntentEmpty extends IntentState {}
+
 // ----- PROVIDERS -----
 final sttServiceProvider = Provider<SttService>((ref) => SttService());
-final aiIntentServiceProvider = Provider<AiIntentService>((ref) => AiIntentService());
+final aiIntentServiceProvider = Provider<AiIntentService>(
+  (ref) => AiIntentService(),
+);
 
-final intentViewModelProvider = NotifierProvider<IntentViewModel, IntentState>(() {
-  return IntentViewModel();
-});
+/// The locale the user has chosen for speech recognition.
+/// `null` means auto-detect from device locale.
+final selectedLocaleProvider =
+    NotifierProvider<SelectedLocaleNotifier, String?>(
+      SelectedLocaleNotifier.new,
+    );
+
+class SelectedLocaleNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void select(String? locale) => state = locale;
+}
+
+final intentViewModelProvider = NotifierProvider<IntentViewModel, IntentState>(
+  () {
+    return IntentViewModel();
+  },
+);
 
 // ----- VIEW MODEL -----
 class IntentViewModel extends Notifier<IntentState> {
-  String currentLocale = 'en-IN'; // Default locale
   String _lastRecognizedWords = '';
+
+  /// Timer that fires if the user hasn't spoken anything after [_noSpeechTimeout].
+  Timer? _noSpeechTimer;
+
+  /// Timer that fires if speech has started but there's been [_silenceTimeout] of silence.
+  Timer? _silenceTimer;
+
+  /// How long to wait for ANY speech before auto-cancelling (user tapped but didn't speak).
+  static const Duration _noSpeechTimeout = Duration(seconds: 5);
+
+  /// How long of silence (after some speech) before auto-submitting.
+  static const Duration _silenceTimeout = Duration(seconds: 2);
 
   @override
   IntentState build() {
+    ref.onDispose(_cancelTimers);
     return IntentIdle();
   }
 
-  void setLocale(String localeId) {
-    currentLocale = localeId;
+  void _cancelTimers() {
+    _noSpeechTimer?.cancel();
+    _noSpeechTimer = null;
+    _silenceTimer?.cancel();
+    _silenceTimer = null;
   }
 
   Future<void> startRecording() async {
-    // Check permission
     final status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
       state = IntentError('Microphone permission denied');
@@ -58,49 +93,90 @@ class IntentViewModel extends Notifier<IntentState> {
 
     _lastRecognizedWords = '';
     state = IntentListening('');
+    _cancelTimers();
+
+    // If the user taps but says nothing within 5s → cancel gracefully
+    _noSpeechTimer = Timer(_noSpeechTimeout, () {
+      if (state is IntentListening && _lastRecognizedWords.trim().isEmpty) {
+        _cancelRecording();
+      }
+    });
 
     try {
       final sttService = ref.read(sttServiceProvider);
+      final localeOverride = ref.read(selectedLocaleProvider);
       await sttService.startListening(
-        localeId: currentLocale,
+        localeOverride: localeOverride,
         onResult: (words) {
           _lastRecognizedWords = words;
-          // Update UI with partial results safely if still listening
           if (state is IntentListening) {
             state = IntentListening(words);
+
+            if (words.trim().isNotEmpty) {
+              // Speech detected → cancel the no-speech watchdog
+              _noSpeechTimer?.cancel();
+              _noSpeechTimer = null;
+
+              // Reset silence timer on every new word
+              _silenceTimer?.cancel();
+              _silenceTimer = Timer(_silenceTimeout, () {
+                if (state is IntentListening) {
+                  stopRecordingAndAnalyze();
+                }
+              });
+            }
           }
         },
       );
     } catch (e) {
+      _cancelTimers();
       state = IntentError(e.toString());
       ref.read(sttServiceProvider).stopListening();
     }
   }
 
-  Future<void> stopRecordingAndAnalyze() async {
-    if (state is! IntentListening) return;
-    
+  /// Called when the user has tapped without saying anything (no-speech timeout).
+  Future<void> _cancelRecording() async {
+    _cancelTimers();
     final sttService = ref.read(sttServiceProvider);
     await sttService.stopListening();
-    state = IntentProcessing();
+    state = IntentEmpty();
+    // Auto-reset back to idle after a brief moment
+    Future.delayed(const Duration(seconds: 2), () {
+      if (state is IntentEmpty) state = IntentIdle();
+    });
+  }
 
-    if (_lastRecognizedWords.trim().isEmpty) {
-      // If no words were parsed by STT, reset to idle
-      state = IntentIdle();
+  Future<void> stopRecordingAndAnalyze() async {
+    if (state is! IntentListening) return;
+
+    _cancelTimers();
+    final sttService = ref.read(sttServiceProvider);
+    await sttService.stopListening();
+
+    final trimmed = _lastRecognizedWords.trim();
+    if (trimmed.isEmpty) {
+      // User tapped stop without saying anything
+      state = IntentEmpty();
+      Future.delayed(const Duration(seconds: 2), () {
+        if (state is IntentEmpty) state = IntentIdle();
+      });
       return;
     }
 
+    state = IntentProcessing();
+
     try {
       final aiService = ref.read(aiIntentServiceProvider);
-      final intent = await aiService.analyzeIntent(_lastRecognizedWords);
+      final intent = await aiService.analyzeIntent(trimmed);
       state = IntentSuccess(intent);
     } catch (e) {
       state = IntentError('Failed to analyze audio: $e');
     }
   }
-  
-  // Helper to reset back to idle after a success/error
+
   void reset() {
+    _cancelTimers();
     state = IntentIdle();
   }
 }

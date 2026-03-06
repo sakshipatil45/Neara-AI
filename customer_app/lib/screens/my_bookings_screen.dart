@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../viewmodels/my_bookings_viewmodel.dart';
-import '../models/booking_model.dart';
 import 'booking_details_screen.dart';
+import '../models/booking_model.dart';
+import '../theme/app_theme.dart';
+import '../viewmodels/my_bookings_viewmodel.dart';
 
 class MyBookingsScreen extends ConsumerWidget {
   const MyBookingsScreen({super.key});
@@ -12,30 +13,30 @@ class MyBookingsScreen extends ConsumerWidget {
     final state = ref.watch(myBookingsViewModelProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // Dark Slate
+      backgroundColor: AppTheme.backgroundSecondary,
       appBar: AppBar(
-        title: const Text(
-          'My Bookings',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
+        title: const Text('My Bookings'),
+        backgroundColor: AppTheme.backgroundPrimary,
         elevation: 0,
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white70),
-            onPressed: () => ref.read(myBookingsViewModelProvider.notifier).loadBookings(),
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: AppTheme.textSecondary,
+            ),
+            onPressed: () =>
+                ref.read(myBookingsViewModelProvider.notifier).loadBookings(),
           ),
         ],
       ),
       body: state.isLoading && state.bookings.isEmpty
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF2563EB)))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue),
+            )
           : state.bookings.isEmpty
-              ? _buildEmptyState(context)
-              : _buildBookingsList(context, state.bookings),
+          ? _buildEmptyState(context)
+          : _buildBookingsList(context, state.bookings),
     );
   }
 
@@ -44,27 +45,26 @@ class MyBookingsScreen extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history_outlined, size: 80, color: Colors.white24),
+          Icon(Icons.history_outlined, size: 80, color: AppTheme.textDisabled),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'No bookings yet',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(context).textTheme.headlineLarge,
           ),
           const SizedBox(height: 12),
           Text(
             'Your service requests will appear here.',
-            style: TextStyle(color: Colors.white60, fontSize: 16),
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBookingsList(BuildContext context, List<BookingRequest> bookings) {
+  Widget _buildBookingsList(
+    BuildContext context,
+    List<BookingRequest> bookings,
+  ) {
     return ListView.builder(
       padding: const EdgeInsets.all(20),
       itemCount: bookings.length,
@@ -84,14 +84,14 @@ class _BookingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        color: AppTheme.backgroundPrimary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderDefault),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -102,7 +102,8 @@ class _BookingCard extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => BookingDetailsScreen(requestId: booking.id!),
+              builder: (context) =>
+                  BookingDetailsScreen(requestId: booking.id!),
             ),
           );
         },
@@ -116,25 +117,30 @@ class _BookingCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: booking.statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: booking.statusColor.withOpacity(0.5)),
+                      color: booking.statusColor.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: booking.statusColor.withOpacity(0.2),
+                      ),
                     ),
                     child: Text(
                       booking.statusText.toUpperCase(),
                       style: TextStyle(
                         color: booking.statusColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.1,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
                   Text(
                     _formatDate(booking.createdAt),
-                    style: const TextStyle(color: Colors.white38, fontSize: 12),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
@@ -149,45 +155,64 @@ class _BookingCard extends StatelessWidget {
                       children: [
                         Text(
                           booking.issueSummary,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.headlineSmall,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Category: ${booking.serviceCategory}',
-                          style: const TextStyle(color: Colors.white60, fontSize: 14),
+                          booking.serviceCategory,
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: Colors.white24),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppTheme.textDisabled,
+                  ),
                 ],
               ),
               if (booking.workerName != null) ...[
                 const SizedBox(height: 16),
-                const Divider(color: Colors.white10),
-                const SizedBox(height: 8),
+                const Divider(color: AppTheme.borderDefault, height: 1),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     CircleAvatar(
-                      radius: 12,
-                      backgroundColor: Colors.white10,
+                      radius: 14,
+                      backgroundColor: AppTheme.backgroundTertiary,
                       backgroundImage: booking.workerProfileImage != null
                           ? NetworkImage(booking.workerProfileImage!)
                           : null,
                       child: booking.workerProfileImage == null
-                          ? const Icon(Icons.person, size: 14, color: Colors.white24)
+                          ? const Icon(
+                              Icons.person,
+                              size: 16,
+                              color: AppTheme.textDisabled,
+                            )
                           : null,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Assigned: ${booking.workerName}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      booking.workerName!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(
+                      Icons.star_rounded,
+                      color: Color(0xFFF59E0B),
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '4.8', // Placeholder rating
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
