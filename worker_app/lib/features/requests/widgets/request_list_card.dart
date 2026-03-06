@@ -26,7 +26,7 @@ class _RequestListCardState extends State<RequestListCard> {
     final description =
         widget.requestData['issue_description'] ??
         'Need assistance at the specified location.';
-    final payment = widget.requestData['estimated_payment'] ?? '₹350 - ₹500';
+    final payment = 'Quote Required';
     final location = widget.requestData['location_name'] ?? 'Local Area';
 
     final createdAtStr = widget.requestData['created_at'];

@@ -4,14 +4,19 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 class JobCompletionScreen extends StatelessWidget {
   final Map<String, dynamic> jobData;
+  final String? displayAmount;
 
-  const JobCompletionScreen({super.key, required this.jobData});
+  const JobCompletionScreen({
+    super.key,
+    required this.jobData,
+    this.displayAmount,
+  });
 
   @override
   Widget build(BuildContext context) {
     final serviceType = jobData['service_category'] ?? 'Service Job';
     final customerName = jobData['customer_name'] ?? 'Customer';
-    final payment = jobData['estimated_payment'] ?? '₹0';
+    final payment = displayAmount ?? jobData['estimated_payment'] ?? '₹0';
 
     return Scaffold(
       backgroundColor: Colors.white,
