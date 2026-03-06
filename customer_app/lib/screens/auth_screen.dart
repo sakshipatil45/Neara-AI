@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/supabase_service.dart';
+import '../services/auth_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -44,52 +43,38 @@ class _AuthScreenState extends State<AuthScreen> {
 
     final phone = _formattedPhone;
     final password = _passwordController.text;
+    final name = _nameController.text.trim();
 
     try {
       if (_isLogin) {
-        // Handle Login
-        await Supabase.instance.client.auth.signInWithPassword(
-          phone: phone,
-          password: password,
-        );
-      } else {
-        // Handle Sign Up
-        final AuthResponse res = await Supabase.instance.client.auth.signUp(
-          phone: phone,
-          password: password,
-        );
-        
-        final user = res.user;
-        if (user != null) {
-            try {
-              await SupabaseService().saveUserProfile(
-                userId: user.id,
-                name: _nameController.text.trim(),
-                phone: _phoneController.text.trim(),
-                role: 'customer',
-              );
-            } catch (_) {
-              // Ignore profile save failure for now
-            }
+        final user = await AuthService().loginUser(phone, password);
+        if (user == null) {
+          setState(() {
+            _error = 'Invalid credentials or user not found.';
+            _isLoading = false;
+          });
+          return;
         }
+      } else {
+        await AuthService().registerUser(
+          name: name,
+          mobile: phone,
+          password: password,
+        );
       }
       
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
       
-    } on AuthException catch (e) {
-      setState(() {
-        if (e.message.toLowerCase().contains("user already registered")) {
-           _error = 'Phone number is already registered. Please login.';
-        } else {
-           _error = e.message;
-        }
-      });
     } catch (e) {
-      if (e.toString().toLowerCase().contains("user already registered")) {
-        setState(() {
-          _error = 'Phone number is already registered. Please login.';
-        });
+      if (!mounted) return;
+      
+      // Basic translation of Postgrest errors (e.g., unique constraint violation for phone)
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('unique') || errorStr.contains('already registered') || errorStr.contains('duplicate')) {
+         setState(() {
+           _error = 'Phone number is already registered. Please login.';
+         });
       } else {
         setState(() {
           _error = 'An unexpected error occurred. Please try again.';
