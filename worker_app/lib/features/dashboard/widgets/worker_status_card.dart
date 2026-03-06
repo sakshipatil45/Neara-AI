@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../models/worker_model.dart';
 import '../providers/dashboard_provider.dart';
+import '../../../services/location_service.dart';
 
 class WorkerStatusCard extends ConsumerWidget {
   final WorkerModel worker;
@@ -128,6 +129,14 @@ class WorkerStatusCard extends ConsumerWidget {
                       try {
                         final service = ref.read(dashboardServiceProvider);
                         await service.updateWorkerStatus(worker.userId, value);
+
+                        // Handle tracking
+                        if (value) {
+                          ref.read(locationServiceProvider).startTracking();
+                        } else {
+                          ref.read(locationServiceProvider).stopTracking();
+                        }
+
                         ref.invalidate(currentWorkerProvider);
                       } catch (e) {
                         // silently handle

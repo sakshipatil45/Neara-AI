@@ -171,7 +171,15 @@ class _ActiveJobCardState extends State<ActiveJobCard> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ActiveJobScreen(jobData: widget.jobData),
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.navigation_rounded, size: 16),
                       label: const Text(
                         'Navigate',
@@ -205,7 +213,15 @@ class _ActiveJobCardState extends State<ActiveJobCard> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ActiveJobScreen(jobData: widget.jobData),
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.check_circle_rounded, size: 16),
                       label: const Text(
                         'Complete',

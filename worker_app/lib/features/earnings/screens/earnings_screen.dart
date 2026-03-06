@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
+import 'withdraw_earnings_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class EarningsScreen extends ConsumerWidget {
@@ -28,42 +29,47 @@ class EarningsScreen extends ConsumerWidget {
       body: earningsAsync.when(
         data: (stats) {
           final history = stats['history'] as List<dynamic>;
-
           return RefreshIndicator(
             onRefresh: () async => ref.refresh(earningsStatsProvider),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Summary Grid
-                  Row(
-                    children: [
-                      _buildSummaryCard(
-                        'Today',
-                        '₹${stats['today']}',
-                        const Color(0xFF10B981),
-                        Icons.today_rounded,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildSummaryCard(
-                        'This Week',
-                        '₹${stats['week']}',
-                        AppTheme.primaryBlue,
-                        Icons.date_range_rounded,
-                      ),
-                    ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _card(
+                          'Today',
+                          '₹${stats['today']?.toStringAsFixed(0)}',
+                          const Color(0xFF10B981),
+                          Icons.today_rounded,
+                        ),
+                        const SizedBox(width: 12),
+                        _card(
+                          'Weekly',
+                          '₹${stats['week']?.toStringAsFixed(0)}',
+                          AppTheme.primaryBlue,
+                          Icons.date_range_rounded,
+                        ),
+                        const SizedBox(width: 12),
+                        _card(
+                          'Monthly',
+                          '₹${stats['month']?.toStringAsFixed(0)}',
+                          Colors.purple,
+                          Icons.calendar_month_rounded,
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  _buildTotalEarningsCard(
-                    'Total Earnings',
-                    '₹${stats['total']}',
+                  _totalCard(
+                    context,
+                    'Withdrawal Balance',
+                    '₹${stats['total']?.toStringAsFixed(0)}',
                   ),
-
                   const SizedBox(height: 32),
-
-                  // Simple Trend Header
                   const Text(
                     'Recent Payments',
                     style: TextStyle(
@@ -73,39 +79,14 @@ class EarningsScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   if (history.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.history_rounded,
-                              size: 48,
-                              color: const Color(0xFFCBD5E1),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'No payment history yet',
-                              style: TextStyle(
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
+                    _empty()
                   else
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: history.length,
-                      itemBuilder: (context, index) {
-                        final job = history[index];
-                        return _buildPaymentItem(job);
-                      },
+                      itemBuilder: (c, i) => _item(history[i]),
                     ),
                 ],
               ),
@@ -118,12 +99,7 @@ class EarningsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSummaryCard(
-    String label,
-    String value,
-    Color color,
-    IconData icon,
-  ) {
+  Widget _card(String l, String v, Color c, IconData i) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -138,23 +114,22 @@ class EarningsScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: c.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 16, color: color),
+              child: Icon(i, size: 16, color: c),
             ),
             const SizedBox(height: 16),
             Text(
-              label,
+              l,
               style: const TextStyle(
                 color: Color(0xFF64748B),
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
             Text(
-              value,
+              v,
               style: const TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 20,
@@ -164,15 +139,17 @@ class EarningsScreen extends ConsumerWidget {
           ],
         ),
       ),
-    ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1, end: 0);
+    ).animate().fadeIn().slideY(begin: 0.1, end: 0);
   }
 
-  Widget _buildTotalEarningsCard(String label, String value) {
+  Widget _totalCard(BuildContext context, String l, String v) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppTheme.primaryBlue,
+        gradient: LinearGradient(
+          colors: [AppTheme.primaryBlue, const Color(0xFF3B82F6)],
+        ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -182,37 +159,81 @@ class EarningsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                v,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 32,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: 32,
-              letterSpacing: -1,
+          ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(v.replaceAll('₹', '')) ?? 0.0;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (c) => WithdrawEarningsScreen(totalBalance: amount),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppTheme.primaryBlue,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Withdraw',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 200.ms).scale(begin: const Offset(0.95, 0.95));
+    ).animate().fadeIn().scale();
   }
 
-  Widget _buildPaymentItem(Map<String, dynamic> job) {
-    final service = job['service_category'] ?? 'Service';
-    final amount = job['estimated_payment'] ?? '₹0';
-    final date = DateTime.tryParse(job['created_at'] ?? '') ?? DateTime.now();
-    final dateStr = '${date.day}/${date.month}/${date.year}';
+  Widget _empty() {
+    return Center(
+      child: Column(
+        children: [
+          const Icon(Icons.history_rounded, size: 48, color: Color(0xFFCBD5E1)),
+          const SizedBox(height: 12),
+          const Text(
+            'No history yet',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _item(Map<String, dynamic> job) {
+    final amountStr = job['estimated_payment']?.toString() ?? '₹0';
+    final amount =
+        double.tryParse(amountStr.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0.0;
+    final category = job['service_category'] ?? 'Service';
+    final dateStr = job['created_at'];
+    final formattedDate = dateStr != null
+        ? '${DateTime.parse(dateStr).day}/${DateTime.parse(dateStr).month}'
+        : 'N/A';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -231,7 +252,7 @@ class EarningsScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
-              Icons.payment_rounded,
+              Icons.payments_rounded,
               color: Color(0xFF64748B),
               size: 20,
             ),
@@ -242,35 +263,32 @@ class EarningsScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  service,
+                  category,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.bold,
                     fontSize: 15,
-                    color: Color(0xFF1E293B),
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  dateStr,
+                  '$formattedDate • Payment Received',
                   style: const TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 12,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
           Text(
-            amount,
+            '₹${amount.toStringAsFixed(0)}',
             style: const TextStyle(
               fontWeight: FontWeight.w900,
-              fontSize: 16,
               color: Color(0xFF10B981),
+              fontSize: 16,
             ),
           ),
         ],
       ),
-    ).animate().fadeIn().slideX(begin: 0.05, end: 0);
+    );
   }
 }

@@ -63,7 +63,15 @@ class _JobsScreenState extends ConsumerState<JobsScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _JobsList(statuses: const ['accepted']),
+          _JobsList(
+            statuses: const [
+              'accepted',
+              'PENDING',
+              'pending',
+              'CREATED',
+              'created',
+            ],
+          ),
           _JobsList(
             statuses: const [
               'PROPOSAL_ACCEPTED',
