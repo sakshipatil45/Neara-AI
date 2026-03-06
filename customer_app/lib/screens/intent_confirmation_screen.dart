@@ -3,7 +3,7 @@ import '../models/service_intent_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class IntentConfirmationScreen extends ConsumerWidget {
-  final ServiceIntentModel intent;
+  final EmergencyInterpretation intent; // UPDATED
 
   const IntentConfirmationScreen({
     super.key,
@@ -11,18 +11,18 @@ class IntentConfirmationScreen extends ConsumerWidget {
   });
 
   IconData _getCategoryIcon() {
-    final cat = intent.serviceCategory.toLowerCase();
+    final cat = intent.serviceCategory.name.toLowerCase(); // UPDATED
     if (cat.contains('plumber')) return Icons.plumbing;
     if (cat.contains('electrician')) return Icons.electrical_services;
     if (cat.contains('mechanic') || cat.contains('car')) return Icons.car_repair;
-    if (cat.contains('clean')) return Icons.cleaning_services;
+    if (cat.contains('clean') || cat.contains('maid')) return Icons.cleaning_services;
     if (cat.contains('appliance')) return Icons.kitchen;
     return Icons.build;
   }
 
   Color _getUrgencyColor() {
-    final urg = intent.urgency.toLowerCase();
-    if (urg.contains('high')) return Colors.red.shade600;
+    final urg = intent.urgency.name.toLowerCase(); // UPDATED
+    if (urg.contains('high') || urg.contains('critical')) return Colors.red.shade600;
     if (urg.contains('medium')) return Colors.orange.shade600;
     return Colors.green.shade600;
   }
@@ -35,7 +35,7 @@ class IntentConfirmationScreen extends ConsumerWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -82,7 +82,7 @@ class IntentConfirmationScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -94,7 +94,7 @@ class IntentConfirmationScreen extends ConsumerWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      intent.serviceCategory.toUpperCase(),
+                      intent.serviceCategory.name.toUpperCase(), // UPDATED
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.2,
@@ -124,7 +124,7 @@ class IntentConfirmationScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      intent.summary,
+                      intent.issueSummary, // UPDATED
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w500,
                             height: 1.4,
@@ -144,11 +144,11 @@ class IntentConfirmationScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: _getUrgencyColor().withValues(alpha: 0.1),
+                            color: _getUrgencyColor().withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            intent.urgency.toUpperCase(),
+                            intent.urgency.name.toUpperCase(), // UPDATED
                             style: TextStyle(
                               color: _getUrgencyColor(),
                               fontSize: 12,

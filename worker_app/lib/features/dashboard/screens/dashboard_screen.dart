@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
 import '../../dashboard/widgets/worker_status_card.dart';
-import '../../dashboard/widgets/earnings_card.dart';
 import '../../dashboard/widgets/request_card.dart';
 import '../../dashboard/widgets/active_job_card.dart';
+import '../../requests/screens/incoming_requests_screen.dart';
 import '../../../providers/auth_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -16,65 +16,182 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final workerAsync = ref.watch(currentWorkerProvider);
-    final statsAsync = ref.watch(dashboardStatsProvider);
     final incomingRequestsAsync = ref.watch(incomingRequestsProvider);
     final activeJobsAsync = ref.watch(activeJobsProvider);
     final userAsync = ref.watch(currentUserProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Modern light background
+      backgroundColor: const Color(0xFFF8FAFC), // Clean light theme background
       body: RefreshIndicator(
         color: AppTheme.primaryBlue,
         onRefresh: () async {
           ref.invalidate(dashboardStatsProvider);
           ref.invalidate(incomingRequestsProvider);
           ref.invalidate(activeJobsProvider);
-          ref.invalidate(
-            currentWorkerProvider,
-          ); // Not really recommended to invalidate StreamProvider like this, but we are using FutureProvider now
+          ref.invalidate(currentWorkerProvider);
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // Premium Header App Bar
             SliverAppBar(
-              expandedHeight: 120.0,
+              expandedHeight: 140.0,
               floating: false,
               pinned: true,
-              elevation: 0,
+              elevation: 4,
+              shadowColor: Colors.black.withOpacity(0.1),
               backgroundColor: AppTheme.primaryBlue,
               flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.only(left: 24, bottom: 16),
-                title: userAsync.when(
-                  data: (user) => Text(
-                    'Dashboard',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 24,
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0xFF2563EB), // Primary Blue
+                            Color(0xFF3B82F6), // Lighter Blue
+                            Color(0xFF8B5CF6), // Subtle Purple Touch
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
                     ),
-                  ),
-                  loading: () => const SizedBox.shrink(),
-                  error: (e, _) => const SizedBox.shrink(),
-                ),
-                background: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppTheme.primaryBlue, const Color(0xFF1E3A8A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                    Positioned(
+                      right: -30,
+                      top: -20,
+                      child: Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                      ),
                     ),
-                  ),
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 48, 20, 16),
+                        child: userAsync.when(
+                          data: (user) => workerAsync.when(
+                            data: (worker) =>
+                                Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 48,
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.white,
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(
+                                                0.5,
+                                              ),
+                                              width: 3,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(
+                                                  0.1,
+                                                ),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              user?.name.isNotEmpty == true
+                                                  ? user!.name[0].toUpperCase()
+                                                  : 'W',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w900,
+                                                color: AppTheme.primaryBlue,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                'Hello, ${user?.name ?? 'Worker'}',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 18,
+                                                  color: Colors.white,
+                                                  letterSpacing: -0.5,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white
+                                                      .withOpacity(0.2),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                  border: Border.all(
+                                                    color: Colors.white
+                                                        .withOpacity(0.3),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  worker?.category ??
+                                                      'Professional',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 10,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                    .animate()
+                                    .fadeIn(duration: 500.ms)
+                                    .slideX(
+                                      begin: -0.1,
+                                      end: 0,
+                                      curve: Curves.easeOutQuart,
+                                    ),
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
+                            error: (e, _) => const SizedBox(),
+                          ),
+                          loading: () => const SizedBox(),
+                          error: (e, _) => const SizedBox(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               actions: [
-                Container(
-                  margin: const EdgeInsets.only(right: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
                   child: IconButton(
                     onPressed: () async {
                       await ref.read(authServiceProvider).logoutWorker();
@@ -86,8 +203,18 @@ class DashboardScreen extends ConsumerWidget {
                         );
                       }
                     },
-                    icon: const Icon(Icons.logout, color: Colors.white),
-                    tooltip: 'Logout',
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.logout_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -95,192 +222,108 @@ class DashboardScreen extends ConsumerWidget {
 
             // Content Body
             SliverPadding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 16.0,
+              ),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // 1. Header Profile Info
-                  userAsync.when(
-                    data: (user) => workerAsync.when(
-                      data: (worker) => Row(
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppTheme.primaryBlue,
-                                  const Color(0xFF60A5FA),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primaryBlue.withOpacity(0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                user?.name.isNotEmpty == true
-                                    ? user!.name[0].toUpperCase()
-                                    : 'W',
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Hello, ${user?.name ?? 'Worker'} 👋',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFF1F2937),
-                                      ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow
-                                      .ellipsis, // Fix for the overflow issue
-                                ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryBlue.withOpacity(
-                                      0.1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    worker?.category ?? 'Professional',
-                                    style: TextStyle(
-                                      color: AppTheme.primaryBlue,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      loading: () => const LinearProgressIndicator(),
-                      error: (e, _) => Container(),
-                    ),
-                    loading: () => const SizedBox.shrink(),
-                    error: (e, _) => const SizedBox.shrink(),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 2. Worker Status Card
+                  // 1. Worker Status Card
                   workerAsync.when(
                     data: (worker) => worker != null
                         ? WorkerStatusCard(worker: worker)
+                              .animate()
+                              .fadeIn(delay: 100.ms)
+                              .slideY(
+                                begin: 0.1,
+                                end: 0,
+                                curve: Curves.easeOutQuart,
+                              )
                         : const SizedBox.shrink(),
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (e, _) => const SizedBox.shrink(),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // 3. Today's Earnings Card
-                  statsAsync.when(
-                    data: (stats) => EarningsCard(
-                      earnings: stats['earnings'] ?? 0.0,
-                      jobsCount: stats['jobs'] ?? 0,
-                    ),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) =>
-                        const SizedBox.shrink(), // Don't show ugly error banners in premium UI
-                  ),
-                  const SizedBox(height: 36),
-
-                  // 4. Quick Actions
+                  // 2. Quick Actions
                   Text(
                     'Quick Actions',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1F2937),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      color: const Color(0xFF1E293B),
+                      letterSpacing: -0.5,
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                  ).animate().fadeIn(delay: 300.ms),
+                  const SizedBox(height: 12),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _QuickActionButton(
-                        icon: Icons.account_balance_wallet_rounded,
-                        label: 'Earnings',
-                        color: const Color(0xFF10B981),
-                        onTap: () {},
-                      ),
-                      _QuickActionButton(
-                        icon: Icons.history_rounded,
-                        label: 'History',
-                        color: const Color(0xFF8B5CF6),
-                        onTap: () {},
-                      ),
-                      _QuickActionButton(
-                        icon: Icons.person_rounded,
-                        label: 'Profile',
-                        color: const Color(0xFFF59E0B),
-                        onTap: () {},
-                      ),
-                      _QuickActionButton(
-                        icon: Icons.headset_mic_rounded,
-                        label: 'Support',
-                        color: const Color(0xFF3B82F6),
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _QuickActionButton(
+                            icon: Icons.account_balance_wallet_rounded,
+                            label: 'Earnings',
+                            color: const Color(0xFF10B981),
+                            onTap: () {},
+                          ),
+                          _QuickActionButton(
+                            icon: Icons.history_rounded,
+                            label: 'History',
+                            color: const Color(0xFF8B5CF6),
+                            onTap: () {},
+                          ),
+                          _QuickActionButton(
+                            icon: Icons.person_rounded,
+                            label: 'Profile',
+                            color: const Color(0xFFF59E0B),
+                            onTap: () {},
+                          ),
+                          _QuickActionButton(
+                            icon: Icons.help_outline_rounded,
+                            label: 'Support',
+                            color: const Color(0xFF3B82F6),
+                            onTap: () {},
+                          ),
+                        ],
+                      )
+                      .animate()
+                      .fadeIn(delay: 400.ms)
+                      .slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuart),
+                  const SizedBox(height: 24),
 
-                  // 5. Active Jobs
+                  // 4. Active Jobs
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Active Jobs',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1F2937),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          color: const Color(0xFF1E293B),
+                          letterSpacing: -0.5,
                         ),
                       ),
                       TextButton(
                         onPressed: () {},
-                        child: Text(
-                          'View All',
-                          style: TextStyle(
-                            color: AppTheme.primaryBlue,
-                            fontWeight: FontWeight.bold,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.primaryBlue,
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
+                        child: const Text('View All'),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
+                  ).animate().fadeIn(delay: 500.ms),
+                  const SizedBox(height: 8),
                   activeJobsAsync.when(
                     data: (jobs) {
                       if (jobs.isEmpty) {
                         return _buildEmptyState(
                           'No active jobs currently',
-                          Icons.work_outline,
+                          Icons.handyman_rounded,
+                          const Color(0xFF3B82F6),
                         );
                       }
                       return Column(
@@ -294,35 +337,67 @@ class DashboardScreen extends ConsumerWidget {
                     error: (e, _) => _buildEmptyState(
                       'Could not load jobs',
                       Icons.error_outline,
+                      Colors.red,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 40),
 
-                  // 6. Incoming Requests
+                  // 5. Incoming Requests
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Incoming Requests',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1F2937),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          color: const Color(0xFF1E293B),
+                          letterSpacing: -0.5,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.warningOrange.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.notifications_active,
-                          color: AppTheme.warningOrange,
-                          size: 20,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child:
+                                const Icon(
+                                      Icons.notifications_active_rounded,
+                                      color: Color(0xFFF59E0B),
+                                      size: 20,
+                                    )
+                                    .animate(
+                                      onPlay: (controller) =>
+                                          controller.repeat(reverse: true),
+                                    )
+                                    .shake(hz: 3, duration: 2.seconds),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const IncomingRequestsScreen(),
+                                ),
+                              );
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppTheme.primaryBlue,
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            child: const Text('View All'),
+                          ),
+                        ],
                       ),
                     ],
-                  ),
+                  ).animate().fadeIn(delay: 600.ms),
                   const SizedBox(height: 16),
                   incomingRequestsAsync.when(
                     data: (requests) {
@@ -330,6 +405,7 @@ class DashboardScreen extends ConsumerWidget {
                         return _buildEmptyState(
                           'No new requests nearby',
                           Icons.inbox_rounded,
+                          const Color(0xFFF59E0B),
                         );
                       }
                       return Column(
@@ -343,9 +419,10 @@ class DashboardScreen extends ConsumerWidget {
                     error: (e, _) => _buildEmptyState(
                       'Could not load requests',
                       Icons.error_outline,
+                      Colors.red,
                     ),
                   ),
-                  const SizedBox(height: 80), // Bottom padding
+                  const SizedBox(height: 100), // Bottom padding
                 ]),
               ),
             ),
@@ -355,41 +432,52 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(String message, IconData icon) {
+  Widget _buildEmptyState(String message, IconData icon, Color color) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFF1F5F9), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 48, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: TextStyle(
-              color: Colors.grey[500],
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 48, color: color),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                message,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        )
+        .animate()
+        .fadeIn(duration: 400.ms)
+        .scaleXY(begin: 0.95, end: 1.0, curve: Curves.easeOutQuart);
   }
 }
 
-class _QuickActionButton extends StatelessWidget {
+class _QuickActionButton extends StatefulWidget {
   final IconData icon;
   final String label;
   final Color color;
@@ -403,52 +491,61 @@ class _QuickActionButton extends StatelessWidget {
   });
 
   @override
+  State<_QuickActionButton> createState() => _QuickActionButtonState();
+}
+
+class _QuickActionButtonState extends State<_QuickActionButton> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        splashColor: color.withOpacity(0.1),
-        highlightColor: color.withOpacity(0.05),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        transform: Matrix4.identity()..scale(_isPressed ? 0.92 : 1.0),
         child: Column(
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: 68,
+              height: 68,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withOpacity(0.15),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
+                    color: widget.color.withOpacity(_isPressed ? 0.0 : 0.15),
+                    blurRadius: _isPressed ? 5 : 15,
+                    offset: Offset(0, _isPressed ? 2 : 6),
                   ),
                 ],
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+              child: Center(
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: widget.color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  Icon(icon, color: color, size: 28),
-                ],
+                  child: Icon(widget.icon, color: widget.color, size: 24),
+                ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
+              widget.label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
                 fontSize: 13,
-                color: const Color(0xFF4B5563),
+                color: Color(0xFF475569),
+                letterSpacing: 0.2,
               ),
             ),
           ],

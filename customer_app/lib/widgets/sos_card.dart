@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class SosCard extends StatelessWidget {
   const SosCard({super.key});
@@ -9,16 +10,16 @@ class SosCard extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFDC2626), Color(0xFF991B1B)],
+          colors: [AppTheme.errorRed, Color(0xFFB91C1C)], // Red-600 to Red-700
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+            color: AppTheme.errorRed.withOpacity(0.25),
             blurRadius: 15,
-            offset: const Offset(0, 5),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -27,7 +28,7 @@ class SosCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            // TODO: Navigate to SOS
+            Navigator.pushNamed(context, '/emergency');
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -36,10 +37,14 @@ class SosCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.warning_amber_rounded, color: Colors.white),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 const Expanded(
@@ -51,20 +56,26 @@ class SosCard extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
                         ),
                       ),
                       Text(
                         'Tap here for immediate critical help',
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: Color(0xCCFFFFFF),
                           fontSize: 13,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
               ],
             ),
           ),

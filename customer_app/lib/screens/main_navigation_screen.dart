@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import 'worker_listing_screen.dart';
+import 'my_bookings_screen.dart';
 import 'profile_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -12,24 +14,12 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _screens.addAll([
-      const HomeScreen(),
-      const Scaffold(body: Center(child: Text('Search'))), // Placeholder
-      const Scaffold(body: Center(child: Text('Bookings'))), // Placeholder
-      ProfileScreen(
-        onBack: () {
-          setState(() {
-            _currentIndex = 0;
-          });
-        },
-      ),
-    ]);
-  }
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const WorkerListingScreen(),
+    const MyBookingsScreen(),
+    const ProfileScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +29,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),

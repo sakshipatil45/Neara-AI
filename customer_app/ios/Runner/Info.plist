@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires microphone access to listen to your voice commands and detect intent.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app requires speech recognition to transcribe your voice intent.</string>
 </dict>
 </plist>

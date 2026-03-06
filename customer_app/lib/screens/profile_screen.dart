@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+gayatri
 import 'edit_profile_screen.dart';
 import 'wallet_screen.dart';
 import 'notifications_screen.dart';
 import 'emergency_contacts_screen.dart';
+
+import '../theme/app_theme.dart';
+main
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -18,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
   UserModel? _user;
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -26,18 +31,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final user = await _authService.getCurrentUserData();
       if (mounted) {
         setState(() {
           _user = user;
           _isLoading = false;
+          if (user == null) {
+            _errorMessage = 'No active session found.';
+          }
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _errorMessage = 'Could not load profile. Check your connection.';
         });
       }
     }
@@ -53,37 +66,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryBlue),
+        ),
+      );
     }
 
     if (_user == null) {
       return Scaffold(
+        backgroundColor: AppTheme.backgroundSecondary,
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('Failed to load profile. Please login again.'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _handleLogout,
-                child: const Text('Login'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.person_off_outlined,
+                  size: 64,
+                  color: AppTheme.textDisabled,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  _errorMessage ?? 'Failed to load profile.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _loadUserData,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _handleLogout,
+                    icon: const Icon(Icons.login_rounded),
+                    label: const Text('Go to Login'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppTheme.backgroundSecondary,
       appBar: AppBar(
-        title: const Text(
-          'Profile',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        title: const Text('Profile'),
+        backgroundColor: AppTheme.backgroundPrimary,
         elevation: 0,
+        centerTitle: false,
         leading: widget.onBack != null
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -127,38 +173,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Header Section
             Container(
               width: double.infinity,
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+              decoration: const BoxDecoration(
+                color: AppTheme.backgroundPrimary,
+                border: Border(
+                  bottom: BorderSide(color: AppTheme.borderDefault),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
               child: Column(
                 children: [
                   CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).primaryColor.withOpacity(0.1),
+                    radius: 44,
+                    backgroundColor: AppTheme.primaryBlue.withValues(
+                      alpha: 0.08,
+                    ),
                     child: Text(
                       _user!.name.isNotEmpty
                           ? _user!.name[0].toUpperCase()
                           : 'U',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primaryBlue,
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     _user!.name,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.headlineLarge,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     _user!.phone,
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
               ),
@@ -261,22 +309,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 8, bottom: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, bottom: 8),
                     child: Text(
                       'Account Details',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textSecondary,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
                   Card(
                     elevation: 0,
+                    color: AppTheme.backgroundPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(color: Colors.grey.shade200),
+                      side: const BorderSide(color: AppTheme.borderDefault),
                     ),
                     child: Column(
                       children: [
@@ -295,9 +344,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           title: 'Mobile Number',
                           value: _user!.phone,
                         ),
-                        Divider(
+                        const Divider(
                           height: 1,
-                          color: Colors.grey.shade100,
+                          color: AppTheme.borderDefault,
                           indent: 56,
                         ),
                         _buildProfileItem(
@@ -319,9 +368,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Card(
                 elevation: 0,
+                color: AppTheme.backgroundPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.grey.shade200),
+                  side: const BorderSide(color: AppTheme.borderDefault),
                 ),
                 child: Column(
                   children: [
@@ -346,9 +396,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSectionCard(List<Widget> children) {
     return Card(
       elevation: 0,
+      color: AppTheme.backgroundPrimary,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: const BorderSide(color: AppTheme.borderDefault),
       ),
       child: Column(children: children),
     );
@@ -365,24 +416,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: AppTheme.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: Colors.grey.shade700, size: 20),
+        child: Icon(icon, color: AppTheme.textSecondary, size: 20),
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
-      subtitle: Text(
-        value,
-        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-      ),
-      trailing: showArrow ? const Icon(Icons.chevron_right, size: 20) : null,
+      subtitle: Text(value, style: Theme.of(context).textTheme.bodySmall),
+      trailing: showArrow
+          ? const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: AppTheme.textDisabled,
+            )
+          : null,
       onTap: onTap,
     );
   }
