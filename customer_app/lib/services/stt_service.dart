@@ -1,107 +1,138 @@
-import 'package:flutter/widgets.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+
+/// Speech-to-text powered by the Sarvam AI saaras:v3 model.
+///
+/// Records audio locally as a 16 kHz mono WAV file, then POSTs it to the
+/// Sarvam API. Language is auto-detected server-side — no locale
+/// configuration needed. Supports hi-IN, mr-IN, en-IN, ta-IN, te-IN and more.
 class SttService {
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  bool _isInitialized = false;
+  final AudioRecorder _recorder = AudioRecorder();
+  bool _isRecording = false;
+  String? _tempFilePath;
 
-  /// Supported locales — order is fallback priority only (device locale is checked first).
-  static const List<String> _supportedLocales = ['hi-IN', 'mr-IN', 'en-IN'];
+  static const String _apiKey = 'sk_651i5g2d_cphlKTY1YLAkDzB4NQ6lXHjv';
+  static const String _sttUrl = 'https://api.sarvam.ai/speech-to-text';
 
-  /// Language codes that should produce Devanagari output.
-  static const Set<String> _devanagariLangs = {'hi', 'mr', 'ne', 'bho', 'mai'};
+  bool get isListening => _isRecording;
 
-  Future<bool> init() async {
-    if (!_isInitialized) {
-      _isInitialized = await _speech.initialize(
-        onError: (error) => debugPrint('STT Error: $error'),
-        onStatus: (status) => debugPrint('STT Status: $status'),
-      );
-    }
-    return _isInitialized;
+  /// No async init required for Sarvam (kept for API compatibility).
+  Future<bool> init() async => true;
+
+  // ── Core API ──────────────────────────────────────────────────────────────
+
+  /// Starts recording audio to a temporary WAV file.
+  ///
+  /// Throws if microphone permission is denied or the recorder fails to start.
+  Future<void> startRecording() async {
+    if (_isRecording) return;
+
+    final hasPermission = await _recorder.hasPermission();
+    if (!hasPermission) throw Exception('Microphone permission denied');
+
+    final dir = await getTemporaryDirectory();
+    _tempFilePath = '${dir.path}/sarvam_voice_input.wav';
+
+    // Remove stale file from a previous session if present.
+    final existing = File(_tempFilePath!);
+    if (existing.existsSync()) existing.deleteSync();
+
+    await _recorder.start(
+      const RecordConfig(
+        encoder: AudioEncoder.wav,
+        sampleRate: 16000,
+        numChannels: 1,
+      ),
+      path: _tempFilePath!,
+    );
+    _isRecording = true;
+    debugPrint('Sarvam STT: recording started → $_tempFilePath');
   }
 
-  /// Picks the best locale for the current device language.
+  /// Stops the recording and uploads the WAV to Sarvam AI for transcription.
   ///
-  /// Priority:
-  /// 1. Device system locale (e.g. hi-IN → Devanagari output, mr-IN → Devanagari)
-  /// 2. First supported locale available on the device
-  /// 3. Hard-coded fallback to en-IN
-  Future<String> _resolveAutoLocale() async {
-    final available = await _speech.locales();
-    final availableIds = available.map((l) => l.localeId).toSet();
+  /// Returns the transcript string in the auto-detected language.
+  Future<String> stopAndTranscribe() async {
+    if (!_isRecording) return '';
+    _isRecording = false;
 
-    // 1. Honour the device system locale so Hindi/Marathi users get Devanagari.
-    final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
-    final lang = deviceLocale.languageCode; // 'hi', 'mr', 'en', …
-    final country = deviceLocale.countryCode ?? 'IN';
-    final exact = '$lang-$country'; // e.g. 'hi-IN'
+    final stoppedPath = await _recorder.stop();
+    final filePath = stoppedPath ?? _tempFilePath;
+    if (filePath == null) throw Exception('Recording failed — no file path');
 
-    if (availableIds.contains(exact) && _supportedLocales.contains(exact)) {
-      debugPrint('STT locale from device system locale: $exact');
-      return exact;
+    final file = File(filePath);
+    if (!file.existsSync() || file.lengthSync() < 512) {
+      throw Exception('Recording too short or empty');
     }
 
-    // Partial match: device language with '-IN' suffix (handles 'hi-US' device → 'hi-IN')
-    if (_devanagariLangs.contains(lang)) {
-      final indiaVariant = '$lang-IN';
-      if (availableIds.contains(indiaVariant)) {
-        debugPrint('STT locale from device language ($lang): $indiaVariant');
-        return indiaVariant;
-      }
-    }
-
-    // 2. Fallback: first supported locale available on the device.
-    for (final preferred in _supportedLocales) {
-      if (availableIds.contains(preferred)) {
-        debugPrint('STT locale fallback: $preferred');
-        return preferred;
-      }
-    }
-
-    debugPrint('STT locale hard-coded fallback: en-IN');
-    return 'en-IN';
+    debugPrint('Sarvam STT: uploading ${file.lengthSync()} bytes...');
+    return _transcribeFile(filePath);
   }
 
-  /// Starts listening.
-  ///
-  /// Pass [localeOverride] (e.g. `'hi-IN'`) to force a specific language.
-  /// If omitted, the device system locale is used with fallback to en-IN.
+  /// Stops the recording without transcribing (e.g. user cancelled).
+  Future<void> cancelRecording() async {
+    if (!_isRecording) return;
+    _isRecording = false;
+    await _recorder.stop();
+    debugPrint('Sarvam STT: recording cancelled');
+  }
+
+  // ── Legacy compatibility shims ─────────────────────────────────────────────
+  // These keep any remaining callers of the old speech_to_text-style interface
+  // compilable. Prefer the core API above for new code.
+
+  /// Starts recording. [onResult] and [localeOverride] are ignored —
+  /// Sarvam auto-detects language and returns a single final result.
+  /// Call [stopAndTranscribe] to stop and retrieve the transcript.
   Future<void> startListening({
     required Function(String text) onResult,
     String? localeOverride,
   }) async {
-    final ready = await init();
-    if (!ready) throw Exception('Speech to Text initialization failed');
-
-    final localeId = localeOverride ?? await _resolveAutoLocale();
-    debugPrint(
-      'STT locale: $localeId${localeOverride != null ? " (user-selected)" : " (auto-resolved)"}',
-    );
-
-    await _speech.listen(
-      onResult: (result) {
-        onResult(result.recognizedWords);
-      },
-      localeId: localeId,
-      listenOptions: stt.SpeechListenOptions(
-        cancelOnError: true,
-        partialResults: true,
-        // Listen for up to 30s; silence timeout handled in ViewModel
-        listenMode: stt.ListenMode.dictation,
-      ),
-    );
+    await startRecording();
   }
 
+  /// Stops recording without transcribing.
+  /// Prefer [stopAndTranscribe] to get the Sarvam result.
   Future<void> stopListening() async {
-    await _speech.stop();
+    await cancelRecording();
   }
 
-  bool get isListening => _speech.isListening;
+  // ── Internal ──────────────────────────────────────────────────────────────
 
-  Future<List<stt.LocaleName>> getLocales() async {
-    final ready = await init();
-    if (ready) return await _speech.locales();
-    return [];
+  Future<String> _transcribeFile(String filePath) async {
+    final request = http.MultipartRequest('POST', Uri.parse(_sttUrl))
+      ..headers['api-subscription-key'] = _apiKey
+      ..fields['model'] = 'saaras:v3'
+      ..fields['mode'] = 'transcribe'
+      ..files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+    final streamed = await request.send().timeout(const Duration(seconds: 30));
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final transcript = data['transcript'] as String? ?? '';
+      final lang = data['language_code'] as String? ?? 'unknown';
+      debugPrint('Sarvam STT: lang=$lang → "$transcript"');
+      return transcript;
+    } else {
+      throw Exception('Sarvam STT ${response.statusCode}: ${response.body}');
+    }
+  }
+
+  Future<void> dispose() async {
+    await _recorder.dispose();
   }
 }
