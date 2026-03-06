@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -172,7 +173,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.edit_outlined,
                       title: 'Edit Profile',
                       value: 'Update your personal information',
-                      onTap: () {},
+                      onTap: () async {
+                        final updated = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                EditProfileScreen(user: _user!),
+                          ),
+                        );
+                        if (updated == true) {
+                          _loadUserData();
+                        }
+                      },
                       showArrow: true,
                     ),
                   ]),
