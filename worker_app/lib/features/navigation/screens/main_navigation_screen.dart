@@ -5,6 +5,7 @@ import '../../dashboard/screens/dashboard_screen.dart';
 import '../../jobs/screens/jobs_screen.dart';
 import '../../requests/screens/requests_screen.dart';
 import '../../earnings/screens/earnings_screen.dart';
+import '../../profile/screens/profile_screen.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -22,6 +23,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     const JobsScreen(),
     const RequestsScreen(),
     const EarningsScreen(),
+    const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -103,6 +105,19 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                 color: AppTheme.primaryBlue,
               ),
               label: 'Earnings',
+            ),
+            NavigationDestination(
+              icon: Icon(
+                Icons.person_outline_rounded,
+                color: _selectedIndex == 4
+                    ? AppTheme.primaryBlue
+                    : const Color(0xFF64748B),
+              ),
+              selectedIcon: Icon(
+                Icons.person_rounded,
+                color: AppTheme.primaryBlue,
+              ),
+              label: 'Profile',
             ),
           ],
         ),

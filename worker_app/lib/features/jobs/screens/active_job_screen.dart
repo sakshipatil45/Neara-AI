@@ -17,6 +17,27 @@ class ActiveJobScreen extends ConsumerStatefulWidget {
 
 class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
   bool _isLoading = false;
+  Map<String, dynamic>? _proposalData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProposalData();
+  }
+
+  Future<void> _fetchProposalData() async {
+    final requestId = widget.jobData['id'];
+    if (requestId == null) return;
+
+    final proposal = await ref
+        .read(dashboardServiceProvider)
+        .getAcceptedProposal(requestId);
+    if (mounted && proposal != null) {
+      setState(() {
+        _proposalData = proposal;
+      });
+    }
+  }
 
   Future<void> _launchMap() async {
     final lat = widget.jobData['latitude'];
@@ -96,8 +117,12 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
     final serviceType = widget.jobData['service_category'] ?? 'Service Job';
     final customerName = widget.jobData['customer_name'] ?? 'Customer';
     final address = widget.jobData['location_name'] ?? 'Local Address';
-    final payment = widget.jobData['estimated_payment'] ?? '₹0';
+    final paymentTotal = _proposalData?['service_cost'] != null
+        ? '₹${((_proposalData?['inspection_fee'] ?? 0) + (_proposalData?['service_cost'] ?? 0)).toStringAsFixed(0)}'
+        : widget.jobData['estimated_payment'] ?? '₹0';
+
     final description =
+        _proposalData?['notes'] ??
         widget.jobData['issue_summary'] ??
         widget.jobData['issue_description'] ??
         'No description provided.';
@@ -169,7 +194,7 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          payment,
+                          paymentTotal,
                           style: const TextStyle(
                             color: Color(0xFF10B981),
                             fontWeight: FontWeight.w800,

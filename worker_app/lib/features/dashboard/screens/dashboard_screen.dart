@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
 import '../../dashboard/widgets/worker_status_card.dart';
 import '../../dashboard/widgets/request_card.dart';
 import '../../dashboard/widgets/active_job_card.dart';
 import '../../requests/screens/incoming_requests_screen.dart';
-import '../../../providers/auth_provider.dart';
+import '../../proposals/screens/proposals_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -35,7 +36,7 @@ class DashboardScreen extends ConsumerWidget {
           slivers: [
             // Premium Header App Bar
             SliverAppBar(
-              expandedHeight: 140.0,
+              expandedHeight: 100.0,
               floating: false,
               pinned: true,
               elevation: 4,
@@ -72,7 +73,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     SafeArea(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 48, 20, 16),
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                         child: userAsync.when(
                           data: (user) => workerAsync.when(
                             data: (worker) =>
@@ -190,32 +191,45 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
               actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: IconButton(
-                    onPressed: () async {
-                      await ref.read(authServiceProvider).logoutWorker();
-                      if (context.mounted) {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
+                userAsync.when(
+                  data: (user) => workerAsync.when(
+                    data: (worker) {
+                      return Row(
+                        children: [
+                          IconButton(
+                            onPressed: () async {
+                              await ref
+                                  .read(authServiceProvider)
+                                  .logoutWorker();
+                              if (context.mounted) {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (context) => const LoginScreen(),
+                                  ),
+                                );
+                              }
+                            },
+                            icon: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.logout_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
                           ),
-                        );
-                      }
+                        ],
+                      );
                     },
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.logout_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
+                    loading: () => const SizedBox(),
+                    error: (_, __) => const SizedBox(),
                   ),
+                  loading: () => const SizedBox(),
+                  error: (_, __) => const SizedBox(),
                 ),
               ],
             ),
@@ -267,10 +281,17 @@ class DashboardScreen extends ConsumerWidget {
                             onTap: () {},
                           ),
                           _QuickActionButton(
-                            icon: Icons.history_rounded,
-                            label: 'History',
+                            icon: Icons.description_rounded,
+                            label: 'Proposals',
                             color: const Color(0xFF8B5CF6),
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ProposalsScreen(),
+                                ),
+                              );
+                            },
                           ),
                           _QuickActionButton(
                             icon: Icons.person_rounded,

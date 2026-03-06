@@ -4,6 +4,8 @@ import '../models/booking_model.dart';
 import '../models/proposal_model.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/my_bookings_viewmodel.dart';
+import 'advance_payment_screen.dart';
+import 'final_payment_screen.dart';
 
 class BookingDetailsScreen extends ConsumerWidget {
   final int requestId;
@@ -45,9 +47,118 @@ class BookingDetailsScreen extends ConsumerWidget {
                     _buildProposalsSection(context, ref, state.proposals),
                   if (booking.workerName != null)
                     _buildWorkerInfo(context, booking),
+                  if (booking.status == 'PROPOSAL_ACCEPTED')
+                    _buildPayAdvanceButton(
+                      context,
+                      ref,
+                      state.proposals,
+                      booking,
+                    ),
+                  if (booking.status == 'SERVICE_COMPLETED')
+                    _buildReleasePaymentButton(
+                      context,
+                      ref,
+                      state.proposals,
+                      booking,
+                    ),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildPayAdvanceButton(
+    BuildContext context,
+    WidgetRef ref,
+    List<Proposal> proposals,
+    BookingRequest request,
+  ) {
+    // Find the accepted proposal (usually just one)
+    final acceptedProposal = proposals.firstWhere(
+      (p) => p.status == 'ACCEPTED',
+      orElse: () => proposals.first,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: () async {
+            final success = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AdvancePaymentScreen(
+                  proposal: acceptedProposal,
+                  request: request,
+                ),
+              ),
+            );
+            if (success == true) {
+              ref.invalidate(bookingDetailsViewModelProvider(requestId));
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primaryBlue,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text(
+            'Pay Advance Escrow',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReleasePaymentButton(
+    BuildContext context,
+    WidgetRef ref,
+    List<Proposal> proposals,
+    BookingRequest request,
+  ) {
+    final acceptedProposal = proposals.firstWhere(
+      (p) => p.status == 'ACCEPTED',
+      orElse: () => proposals.first,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: () async {
+            final success = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FinalPaymentScreen(
+                  proposal: acceptedProposal,
+                  request: request,
+                ),
+              ),
+            );
+            if (success == true) {
+              ref.invalidate(bookingDetailsViewModelProvider(requestId));
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF059669),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text(
+            'Release Final Payment',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
     );
   }
 

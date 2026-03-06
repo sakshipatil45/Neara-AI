@@ -62,11 +62,7 @@ final activeJobsProvider = FutureProvider<List<Map<String, dynamic>>>((
   if (worker == null) return [];
 
   final service = ref.watch(dashboardServiceProvider);
-  return service.getJobsByStatus(worker.id, [
-    'PROPOSAL_ACCEPTED',
-    'WORKER_COMING',
-    'SERVICE_STARTED',
-  ]);
+  return service.getActiveJobs(worker.id);
 });
 
 // Full Earnings Stats Provider

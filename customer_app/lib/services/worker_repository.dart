@@ -10,7 +10,9 @@ class WorkerRepository {
   Future<List<Worker>> fetchWorkers({String? category}) async {
     var query = _client
         .from('workers')
-        .select('id, category, experience_years, rating, total_jobs, is_verified, is_online, latitude, longitude, service_radius_km, users!workers_user_id_fkey(name, phone, profile_image)');
+        .select(
+          'id, category, experience_years, rating, total_jobs, is_verified, is_online, latitude, longitude, service_radius_km, users!workers_user_id_fkey(name, phone, profile_image)',
+        );
 
     if (category != null && category != 'All') {
       query = query.eq('category', category);
@@ -44,7 +46,9 @@ class WorkerRepository {
   Future<List<BookingRequest>> fetchMyBookings(String customerId) async {
     final data = await _client
         .from('service_requests')
-        .select('*, workers!service_requests_worker_id_fkey(*, users!workers_user_id_fkey(name, profile_image))')
+        .select(
+          '*, workers!service_requests_worker_id_fkey(*, users!workers_user_id_fkey(name, profile_image))',
+        )
         .eq('customer_id', customerId)
         .order('created_at', ascending: false);
 
@@ -52,12 +56,14 @@ class WorkerRepository {
         .map((row) => BookingRequest.fromJson(row as Map<String, dynamic>))
         .toList();
   }
-  
+
   // ── Fetch a single booking by ID ──
   Future<BookingRequest> fetchBookingDetails(int requestId) async {
     final data = await _client
         .from('service_requests')
-        .select('*, workers!service_requests_worker_id_fkey(*, users!workers_user_id_fkey(name, profile_image))')
+        .select(
+          '*, workers!service_requests_worker_id_fkey(*, users!workers_user_id_fkey(name, profile_image))',
+        )
         .eq('id', requestId)
         .single();
 
@@ -68,7 +74,9 @@ class WorkerRepository {
   Future<List<Proposal>> fetchProposals(int requestId) async {
     final data = await _client
         .from('proposals')
-        .select('*, workers!proposals_worker_id_fkey(*, users!workers_user_id_fkey(name, profile_image))')
+        .select(
+          '*, workers!proposals_worker_id_fkey(*, users!workers_user_id_fkey(name, profile_image))',
+        )
         .eq('request_id', requestId)
         .order('created_at', ascending: false);
 
@@ -78,7 +86,11 @@ class WorkerRepository {
   }
 
   // ── Accept/Reject a proposal ──
-  Future<void> respondToProposal(int proposalId, int requestId, String status) async {
+  Future<void> respondToProposal(
+    int proposalId,
+    int requestId,
+    String status,
+  ) async {
     // 1. Update proposal status
     await _client
         .from('proposals')
@@ -91,10 +103,41 @@ class WorkerRepository {
           .from('service_requests')
           .update({'status': 'PROPOSAL_ACCEPTED'})
           .eq('id', requestId);
-          
-      // Defer: Reject all other proposals for this request? 
+
+      // Defer: Reject all other proposals for this request?
       // PRD doesn't explicitly state, but typically desirable.
     }
+  }
+
+  // ── Accept a proposal and update request status ──
+  Future<void> acceptProposal(int proposalId, int requestId) async {
+    // 1. Update proposal status
+    await _client
+        .from('proposals')
+        .update({'status': 'ACCEPTED'})
+        .eq('id', proposalId);
+
+    // 2. Update service request status
+    await _client
+        .from('service_requests')
+        .update({'status': 'PROPOSAL_ACCEPTED'})
+        .eq('id', requestId);
+  }
+
+  // ── Confirm advance payment ──
+  Future<void> confirmAdvancePayment(int requestId) async {
+    await _client
+        .from('service_requests')
+        .update({'status': 'ADVANCE_PAID'})
+        .eq('id', requestId);
+  }
+
+  // ── Final payment release ──
+  Future<void> releaseFinalPayment(int requestId) async {
+    await _client
+        .from('service_requests')
+        .update({'status': 'COMPLETED'})
+        .eq('id', requestId);
   }
 
   // ── Update booking status ──
