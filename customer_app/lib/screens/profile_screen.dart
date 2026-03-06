@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'edit_profile_screen.dart';
+import 'wallet_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -196,7 +197,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.account_balance_wallet_outlined,
                       title: 'Wallet',
                       value: 'Check balance and payment history',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WalletScreen(),
+                          ),
+                        );
+                      },
                       showArrow: true,
                     ),
                   ]),
