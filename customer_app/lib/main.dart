@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/main_navigation_screen.dart';
+import 'screens/emergency_page.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -36,6 +37,7 @@ class CustomerApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/auth': (context) => const AuthScreen(),
         '/home': (context) => const MainNavigationScreen(),
+        '/emergency': (context) => const EmergencyPage(),
       },
     );
   }
