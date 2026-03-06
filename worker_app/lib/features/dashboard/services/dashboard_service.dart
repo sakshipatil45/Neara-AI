@@ -91,9 +91,7 @@ class DashboardService {
           .inFilter('status', statuses)
           .order('created_at', ascending: false);
 
-      print(
-        'DEBUG: Found ${response.length} matching jobs using $idColumn columns',
-      );
+      print('DEBUG: Found ${response.length} matching jobs');
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
