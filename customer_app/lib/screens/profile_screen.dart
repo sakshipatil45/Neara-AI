@@ -5,7 +5,6 @@ import 'edit_profile_screen.dart';
 import 'wallet_screen.dart';
 import 'notifications_screen.dart';
 import 'emergency_contacts_screen.dart';
-
 import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {

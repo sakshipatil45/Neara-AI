@@ -63,7 +63,15 @@ class _JobsScreenState extends ConsumerState<JobsScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _JobsList(statuses: const ['accepted']),
+          _JobsList(
+            statuses: const [
+              'accepted',
+              'PENDING',
+              'pending',
+              'CREATED',
+              'created',
+            ],
+          ),
           _JobsList(
             statuses: const [
               'PROPOSAL_ACCEPTED',
@@ -97,7 +105,7 @@ class _JobsList extends ConsumerWidget {
 
         final jobsFuture = ref
             .watch(dashboardServiceProvider)
-            .getJobsByStatus(worker.id!, statuses);
+            .getJobsByStatus(worker.id ?? 0, statuses);
 
         return FutureBuilder<List<Map<String, dynamic>>>(
           future: jobsFuture,

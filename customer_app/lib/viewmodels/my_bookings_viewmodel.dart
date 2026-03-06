@@ -31,6 +31,7 @@ class MyBookingsState {
 
 class MyBookingsViewModel extends Notifier<MyBookingsState> {
   RealtimeChannel? _proposalChannel;
+  StreamSubscription<List<Map<String, dynamic>>>? _requestsStream;
 
   @override
   MyBookingsState build() {
@@ -52,7 +53,19 @@ class MyBookingsViewModel extends Notifier<MyBookingsState> {
         )
         .subscribe();
 
+    // Subscribe to service_requests status changes so the booking list
+    // updates in real-time whenever a booking's status changes
+    // (e.g. PENDING → PROPOSAL_SENT, WORKER_COMING → SERVICE_STARTED).
+    const customerId = 'fc91af88-9664-4953-a342-01f50a9ea2c6';
+    _requestsStream = Supabase.instance.client
+        .from('service_requests')
+        .stream(primaryKey: ['id'])
+        .eq('customer_id', customerId)
+        .listen((_) => loadBookings());
+
     ref.onDispose(() {
+      _requestsStream?.cancel();
+      _requestsStream = null;
       _proposalChannel?.unsubscribe();
       _proposalChannel = null;
     });
@@ -200,4 +213,133 @@ class NewProposalAlertNotifier extends Notifier<int> {
 final newProposalAlertProvider =
     NotifierProvider<NewProposalAlertNotifier, int>(
       NewProposalAlertNotifier.new,
+    );
+
+// ─────────────── Proposals Hub (all actionable proposals) ───────────────
+
+class ProposalItem {
+  final Proposal proposal;
+  final int requestId;
+  final String serviceCategory;
+  final String issueSummary;
+  final String bookingStatus;
+
+  const ProposalItem({
+    required this.proposal,
+    required this.requestId,
+    required this.serviceCategory,
+    required this.issueSummary,
+    required this.bookingStatus,
+  });
+
+  // needs customer response (accept/negotiate/reject)
+  bool get needsResponse => proposal.isPending || proposal.isNegotiating;
+
+  // accepted but advance not yet paid
+  bool get needsAdvancePay =>
+      proposal.isAccepted && (bookingStatus == 'PROPOSAL_ACCEPTED');
+
+  // advance paid, service completed, final balance due
+  bool get needsFinalPay =>
+      bookingStatus == 'FINAL_PAYMENT_PENDING' ||
+      bookingStatus == 'SERVICE_COMPLETED';
+}
+
+class ProposalsHubState {
+  final List<ProposalItem> items;
+  final bool isLoading;
+  final String? error;
+
+  const ProposalsHubState({
+    this.items = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  ProposalsHubState copyWith({
+    List<ProposalItem>? items,
+    bool? isLoading,
+    String? error,
+  }) => ProposalsHubState(
+    items: items ?? this.items,
+    isLoading: isLoading ?? this.isLoading,
+    error: error,
+  );
+
+  int get pendingCount => items
+      .where((i) => i.needsResponse || i.needsAdvancePay || i.needsFinalPay)
+      .length;
+}
+
+class ProposalsHubNotifier extends Notifier<ProposalsHubState> {
+  RealtimeChannel? _channel;
+
+  @override
+  ProposalsHubState build() {
+    Future.microtask(load);
+
+    _channel = Supabase.instance.client
+        .channel('proposals_hub_ch')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'proposals',
+          callback: (_) => load(),
+        )
+        .subscribe();
+
+    ref.onDispose(() {
+      _channel?.unsubscribe();
+      _channel = null;
+    });
+
+    return const ProposalsHubState();
+  }
+
+  WorkerRepository get _repo => ref.read(workerRepositoryProvider);
+
+  Future<void> load() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      const customerId = 'fc91af88-9664-4953-a342-01f50a9ea2c6';
+      final raw = await _repo.fetchCustomerProposals(customerId);
+      final items = raw
+          .map(
+            (r) => ProposalItem(
+              proposal: r.proposal,
+              requestId: r.requestId,
+              serviceCategory: r.serviceCategory,
+              issueSummary: r.issueSummary,
+              bookingStatus: r.bookingStatus,
+            ),
+          )
+          .toList();
+      state = state.copyWith(items: items, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load proposals: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> respondToProposal(
+    int proposalId,
+    int requestId,
+    String status,
+  ) async {
+    try {
+      await _repo.respondToProposal(proposalId, requestId, status);
+      await load();
+      // Also refresh the bookings list so status chip updates
+      ref.read(myBookingsViewModelProvider.notifier).loadBookings();
+    } catch (e) {
+      state = state.copyWith(error: 'Action failed: ${e.toString()}');
+    }
+  }
+}
+
+final proposalsHubProvider =
+    NotifierProvider<ProposalsHubNotifier, ProposalsHubState>(
+      ProposalsHubNotifier.new,
     );

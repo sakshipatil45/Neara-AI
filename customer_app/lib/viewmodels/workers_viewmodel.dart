@@ -5,8 +5,9 @@ import '../models/booking_model.dart';
 import '../services/worker_repository.dart';
 
 // ── Repository provider ──
-final workerRepositoryProvider =
-    Provider<WorkerRepository>((_) => WorkerRepository());
+final workerRepositoryProvider = Provider<WorkerRepository>(
+  (_) => WorkerRepository(),
+);
 
 // ─────────────── Workers State & Notifier ───────────────
 class WorkersState {
@@ -27,13 +28,12 @@ class WorkersState {
     bool? isLoading,
     String? error,
     String? selectedCategory,
-  }) =>
-      WorkersState(
-        workers: workers ?? this.workers,
-        isLoading: isLoading ?? this.isLoading,
-        error: error,
-        selectedCategory: selectedCategory ?? this.selectedCategory,
-      );
+  }) => WorkersState(
+    workers: workers ?? this.workers,
+    isLoading: isLoading ?? this.isLoading,
+    error: error,
+    selectedCategory: selectedCategory ?? this.selectedCategory,
+  );
 }
 
 class WorkersViewModel extends Notifier<WorkersState> {
@@ -91,12 +91,11 @@ class BookingState {
     BookingStatus? status,
     BookingRequest? lastBooking,
     String? error,
-  }) =>
-      BookingState(
-        status: status ?? this.status,
-        lastBooking: lastBooking ?? this.lastBooking,
-        error: error,
-      );
+  }) => BookingState(
+    status: status ?? this.status,
+    lastBooking: lastBooking ?? this.lastBooking,
+    error: error,
+  );
 }
 
 class BookingViewModel extends Notifier<BookingState> {
@@ -116,8 +115,9 @@ class BookingViewModel extends Notifier<BookingState> {
     try {
       // 1. Try to get current user id from Supabase Auth
       // 2. If null, use the valid dummy UUID for demo purposes
-      final finalCustomerId = customerId ?? 
-          Supabase.instance.client.auth.currentUser?.id ?? 
+      final finalCustomerId =
+          customerId ??
+          Supabase.instance.client.auth.currentUser?.id ??
           'fc91af88-9664-4953-a342-01f50a9ea2c6';
 
       final booking = await _repo.sendBookingRequest(
@@ -127,11 +127,13 @@ class BookingViewModel extends Notifier<BookingState> {
           serviceCategory: serviceCategory,
           issueSummary: issueSummary,
           urgency: urgency,
-          status: 'pending',
+          status: 'PENDING',
         ),
       );
       state = state.copyWith(
-          status: BookingStatus.success, lastBooking: booking);
+        status: BookingStatus.success,
+        lastBooking: booking,
+      );
       return true;
     } catch (e) {
       print('❌ Booking Error: $e');
