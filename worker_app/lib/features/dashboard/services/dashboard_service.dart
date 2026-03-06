@@ -4,7 +4,7 @@ class DashboardService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   // Toggle worker online status
-  Future<void> updateWorkerStatus(String workerId, bool isOnline) async {
+  Future<void> updateWorkerStatus(dynamic workerId, bool isOnline) async {
     try {
       await _supabase
           .from('workers')
@@ -16,7 +16,7 @@ class DashboardService {
   }
 
   // Get today's earnings and jobs count
-  Future<Map<String, dynamic>> getTodayEarnings(String workerId) async {
+  Future<Map<String, dynamic>> getTodayEarnings(dynamic workerId) async {
     try {
       final today = DateTime.now();
       final startOfDay = DateTime(
@@ -49,47 +49,111 @@ class DashboardService {
   Future<List<Map<String, dynamic>>> getIncomingRequests() async {
     try {
       print('DEBUG: Fetching incoming requests from Supabase...');
-      // Temporarily removing status filter to see if ANY requests exist
+
+      // Debug: Log ANY service requests to see their structure/status
+      final anyRes = await _supabase
+          .from('service_requests')
+          .select('status, id')
+          .limit(5);
+      print('DEBUG: Raw service_requests sample: $anyRes');
+
+      // Try matching both upper and lower case
       final response = await _supabase
           .from('service_requests')
           .select()
+          .or('status.eq.MATCHING,status.eq.matching')
           .order('created_at', ascending: false)
-          .limit(10);
+          .limit(20);
 
-      print('DEBUG: Supabase returned ${response.length} requests');
-      if (response.isNotEmpty) {
-        print('DEBUG: First request status: ${response[0]['status']}');
-      } else {
-        print('DEBUG: service_requests table appears to be empty.');
-      }
+      print('DEBUG: Found ${response.length} matching requests');
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('DEBUG: Supabase fetch error: $e');
+      print('DEBUG: ERROR in getIncomingRequests: $e');
       return [];
     }
   }
 
-  // Fetch active jobs using regular query instead of stream to prevent timeouts
-  Future<List<Map<String, dynamic>>> getActiveJobs(String userId) async {
+  // Fetch jobs by status (Pending, Active, Completed)
+  Future<List<Map<String, dynamic>>> getJobsByStatus(
+    dynamic workerId,
+    List<String> statuses,
+  ) async {
     try {
-      print('DEBUG: Fetching active jobs for user $userId...');
-      // Since we don't know the exact schema, we fallback to all active jobs
-      // In a real app we'd join the workers table to filter by user_id
+      print(
+        'DEBUG: Fetching jobs for worker $workerId with statuses $statuses',
+      );
+
       final response = await _supabase
           .from('service_requests')
           .select()
-          .inFilter('status', [
-            'PROPOSAL_ACCEPTED',
-            'WORKER_COMING',
-            'SERVICE_STARTED',
-          ])
-          .limit(10);
-      print('DEBUG: Successfully fetched ${response.length} active jobs');
+          .eq('worker_id', workerId)
+          .inFilter('status', statuses)
+          .order('created_at', ascending: false);
+
+      print(
+        'DEBUG: Found ${response.length} matching jobs using $idColumn columns',
+      );
+
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('DEBUG: Error fetching active jobs: $e');
+      print('DEBUG: ERROR in getJobsByStatus: $e');
       return [];
+    }
+  }
+
+  // Get full earnings stats (Today, Week, All Time)
+  Future<Map<String, dynamic>> getEarningsStats(dynamic workerId) async {
+    try {
+      final now = DateTime.now();
+      final startOfToday = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).toUtc().toIso8601String();
+      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+      final startOfWeekStr = DateTime(
+        startOfWeek.year,
+        startOfWeek.month,
+        startOfWeek.day,
+      ).toUtc().toIso8601String();
+
+      // Fetch all completed jobs for this worker
+      final response = await _supabase
+          .from('service_requests')
+          .select('estimated_payment, created_at')
+          .eq('worker_id', workerId)
+          .eq('status', 'SERVICE_COMPLETED');
+
+      double today = 0;
+      double week = 0;
+      double total = 0;
+
+      for (var job in response) {
+        final paymentStr = job['estimated_payment']?.toString() ?? '₹0';
+        final price =
+            double.tryParse(paymentStr.replaceAll(RegExp(r'[^0-9]'), '')) ??
+            0.0;
+        final createdAt = DateTime.parse(job['created_at']);
+
+        total += price;
+        if (createdAt.isAfter(DateTime.parse(startOfToday))) {
+          today += price;
+        }
+        if (createdAt.isAfter(DateTime.parse(startOfWeekStr))) {
+          week += price;
+        }
+      }
+
+      return {
+        'today': today,
+        'week': week,
+        'total': total,
+        'history': List<Map<String, dynamic>>.from(response),
+      };
+    } catch (e) {
+      print('DEBUG: Error fetching earnings stats: $e');
+      return {'today': 0, 'week': 0, 'total': 0, 'history': []};
     }
   }
 
