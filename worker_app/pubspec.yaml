@@ -43,6 +43,7 @@ dependencies:
   shared_preferences: ^2.2.2
   geocoding: ^3.0.0
   flutter_animate: ^4.5.1
+  url_launcher: ^6.2.5
 
 dev_dependencies:
   flutter_test:
