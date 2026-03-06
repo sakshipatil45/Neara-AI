@@ -4,6 +4,9 @@ import '../models/booking_model.dart';
 import '../models/proposal_model.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/my_bookings_viewmodel.dart';
+import 'service_live_screen.dart';
+import 'service_completion_screen.dart';
+import 'review_screen.dart';
 
 class BookingDetailsScreen extends ConsumerWidget {
   final int requestId;
@@ -28,26 +31,158 @@ class BookingDetailsScreen extends ConsumerWidget {
               child: CircularProgressIndicator(color: AppTheme.primaryBlue),
             )
           : booking == null
-          ? const Center(child: Text('Booking not found'))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+          ? Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildHeader(context, booking),
-                  const SizedBox(height: 32),
-                  _buildTimeline(context, booking.status),
-                  const SizedBox(height: 32),
-                  if (state.proposals.isNotEmpty &&
-                      (booking.status == 'CREATED' ||
-                          booking.status == 'MATCHING' ||
-                          booking.status == 'PROPOSAL_SENT'))
-                    _buildProposalsSection(context, ref, state.proposals),
-                  if (booking.workerName != null)
-                    _buildWorkerInfo(context, booking),
+                  const Text('Booking not found'),
+                  if (state.error != null) ...[
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        state.error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: AppTheme.errorRed,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
+            )
+          : Column(
+              children: [
+                if (state.error != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    color: AppTheme.errorRed.withValues(alpha: 0.1),
+                    child: Text(
+                      state.error!,
+                      style: const TextStyle(
+                        color: AppTheme.errorRed,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(context, booking),
+                        const SizedBox(height: 32),
+                        _buildTimeline(context, booking.status),
+                        const SizedBox(height: 32),
+                        if (booking.workerName != null)
+                          _buildWorkerInfo(context, booking),
+                        const SizedBox(height: 24),
+                        _buildLifecycleCTA(context, booking, state.proposals),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
+    );
+  }
+
+  Widget _buildLifecycleCTA(
+    BuildContext context,
+    BookingRequest booking,
+    List<Proposal> proposals,
+  ) {
+    // Worker en route or service active → live tracking
+    if (booking.isWorkerEnRoute || booking.isServiceActive) {
+      return _ctaButton(
+        context,
+        icon: Icons.location_on_rounded,
+        label: booking.isServiceActive ? 'Track Service' : 'Track Worker',
+        color: const Color(0xFF0284C7),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ServiceLiveScreen(requestId: requestId),
+          ),
+        ),
+      );
+    }
+
+    // Final payment needed
+    if (booking.needsFinalPayment) {
+      return _ctaButton(
+        context,
+        icon: Icons.lock_open_rounded,
+        label: 'Pay Final Balance',
+        color: AppTheme.primaryBlue,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ServiceCompletionScreen(requestId: requestId),
+          ),
+        ),
+      );
+    }
+
+    // Review pending
+    if (booking.canReview) {
+      return _ctaButton(
+        context,
+        icon: Icons.star_rounded,
+        label: 'Rate & Review',
+        color: const Color(0xFFF59E0B),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReviewScreen(
+              requestId: requestId,
+              workerId: booking.workerId ?? 0,
+              workerName: booking.workerName,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _ctaButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: onTap,
+        style: FilledButton.styleFrom(
+          backgroundColor: color,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        icon: Icon(icon, color: Colors.white),
+        label: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+      ),
     );
   }
 
@@ -248,39 +383,6 @@ class BookingDetailsScreen extends ConsumerWidget {
     }
   }
 
-  Widget _buildProposalsSection(
-    BuildContext context,
-    WidgetRef ref,
-    List<Proposal> proposals,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Received Offers',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 16),
-        ...proposals.map(
-          (p) => _ProposalCard(
-            proposal: p,
-            onAccept: () {
-              ref
-                  .read(bookingDetailsViewModelProvider(requestId).notifier)
-                  .respondToProposal(p.id, 'ACCEPTED');
-            },
-            onReject: () {
-              ref
-                  .read(bookingDetailsViewModelProvider(requestId).notifier)
-                  .respondToProposal(p.id, 'REJECTED');
-            },
-          ),
-        ),
-        const SizedBox(height: 32),
-      ],
-    );
-  }
-
   Widget _buildWorkerInfo(BuildContext context, BookingRequest booking) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -338,163 +440,6 @@ class BookingDetailsScreen extends ConsumerWidget {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProposalCard extends StatelessWidget {
-  final Proposal proposal;
-  final VoidCallback onAccept;
-  final VoidCallback onReject;
-
-  const _ProposalCard({
-    required this.proposal,
-    required this.onAccept,
-    required this.onReject,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.backgroundPrimary,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.primaryBlue.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryBlue.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const CircleAvatar(
-                radius: 14,
-                backgroundColor: AppTheme.backgroundSecondary,
-                child: Icon(
-                  Icons.person_rounded,
-                  size: 16,
-                  color: AppTheme.textDisabled,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                proposal.workerName ?? 'Worker Offer',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const Spacer(),
-              const Icon(
-                Icons.star_rounded,
-                color: Color(0xFFF59E0B),
-                size: 16,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                proposal.workerRating ?? '4.5',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _PriceRow(
-            label: 'Inspection Fee',
-            value: '₹${proposal.inspectionFee.toStringAsFixed(0)}',
-          ),
-          _PriceRow(
-            label: 'Estimated Cost',
-            value: '₹${proposal.serviceCost.toStringAsFixed(0)}',
-          ),
-          const Divider(color: AppTheme.borderDefault, height: 24),
-          _PriceRow(
-            label: 'Total Estimate',
-            value: '₹${proposal.totalEstimate.toStringAsFixed(0)}',
-            isBold: true,
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onReject,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.textSecondary,
-                    side: const BorderSide(color: AppTheme.borderDefault),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Reject'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: onAccept,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Accept Offer'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PriceRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool isBold;
-
-  const _PriceRow({
-    required this.label,
-    required this.value,
-    this.isBold = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: isBold ? AppTheme.textPrimary : AppTheme.textSecondary,
-              fontSize: 14,
-              fontWeight: isBold ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: isBold ? AppTheme.primaryBlue : AppTheme.textPrimary,
-              fontSize: 16,
-              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-            ),
           ),
         ],
       ),
