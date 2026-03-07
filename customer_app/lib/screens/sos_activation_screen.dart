@@ -302,9 +302,10 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                       onTap: _cancelSOS,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
+                          horizontal: 16,
+                          vertical: 11,
                         ),
+                        constraints: const BoxConstraints(minHeight: 44),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.white30),
                           borderRadius: BorderRadius.circular(20),
@@ -587,9 +588,10 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                 onTap: _stopListening,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
+                    horizontal: 16,
+                    vertical: 11,
                   ),
+                  constraints: const BoxConstraints(minHeight: 44),
                   decoration: BoxDecoration(
                     color: _kRed,
                     borderRadius: BorderRadius.circular(12),
@@ -775,12 +777,19 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                 // Reload after returning from manage screen
                 _loadContacts();
               },
-              child: const Text(
-                'Manage',
-                style: TextStyle(
-                  color: Color(0xFF60A5FA),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 12,
+                ),
+                constraints: const BoxConstraints(minHeight: 44),
+                child: const Text(
+                  'Manage',
+                  style: TextStyle(
+                    color: Color(0xFF60A5FA),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
@@ -860,22 +869,28 @@ class _SosContactRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              Text(
-                subtitle,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-            ],
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ],
+            ),
           ),
         ],
       ),

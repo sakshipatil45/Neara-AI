@@ -10,6 +10,28 @@ import '../models/job_model.dart';
 class WorkerRepository {
   final SupabaseClient _client = Supabase.instance.client;
 
+  /// Keeps the `jobs` table status in sync with `service_requests`.
+  /// Non-fatal — a missing jobs row is fine (it may not exist yet).
+  Future<void> _syncJobStatus(int requestId, String status) async {
+    try {
+      await _client
+          .from('jobs')
+          .update({
+            'status': status,
+            if (status == 'SERVICE_STARTED')
+              'started_at': DateTime.now().toIso8601String(),
+            if (status == 'SERVICE_CLOSED' ||
+                status == 'SERVICE_COMPLETED' ||
+                status == 'COMPLETED' ||
+                status == 'RATED')
+              'completed_at': DateTime.now().toIso8601String(),
+          })
+          .eq('request_id', requestId);
+    } catch (_) {
+      // Non-fatal
+    }
+  }
+
   // ── Fetch all workers with joined user info ──
   Future<List<Worker>> fetchWorkers({String? category}) async {
     var query = _client
@@ -118,6 +140,7 @@ class WorkerRepository {
           .from('service_requests')
           .update({'status': 'PROPOSAL_ACCEPTED'})
           .eq('id', requestId);
+      await _syncJobStatus(requestId, 'PROPOSAL_ACCEPTED');
 
       // Defer: Reject all other proposals for this request?
       // PRD doesn't explicitly state, but typically desirable.
@@ -137,6 +160,7 @@ class WorkerRepository {
         .from('service_requests')
         .update({'status': 'PROPOSAL_ACCEPTED'})
         .eq('id', requestId);
+    await _syncJobStatus(requestId, 'PROPOSAL_ACCEPTED');
   }
 
   // ── Confirm advance payment ──
@@ -145,6 +169,7 @@ class WorkerRepository {
         .from('service_requests')
         .update({'status': 'ADVANCE_PAID'})
         .eq('id', requestId);
+    await _syncJobStatus(requestId, 'ADVANCE_PAID');
   }
 
   // ── Final payment release ──
@@ -153,6 +178,7 @@ class WorkerRepository {
         .from('service_requests')
         .update({'status': 'COMPLETED'})
         .eq('id', requestId);
+    await _syncJobStatus(requestId, 'COMPLETED');
   }
 
   // ── Update booking status ──
@@ -161,6 +187,7 @@ class WorkerRepository {
         .from('service_requests')
         .update({'status': status})
         .eq('id', requestId);
+    await _syncJobStatus(requestId, status);
   }
 
   // ── Send a counter-offer (negotiation) ──
@@ -247,11 +274,12 @@ class WorkerRepository {
       // Non-fatal: jobs record creation failure should not block payment
     }
 
-    // Update service request status to WORKER_COMING
+    // Update service request status to ADVANCE_PAID
     await _client
         .from('service_requests')
-        .update({'status': 'WORKER_COMING'})
+        .update({'status': 'ADVANCE_PAID'})
         .eq('id', requestId);
+    await _syncJobStatus(requestId, 'ADVANCE_PAID');
 
     return EscrowPayment.fromJson(response as Map<String, dynamic>);
   }
@@ -323,6 +351,7 @@ class WorkerRepository {
         .from('service_requests')
         .update({'status': 'SERVICE_CLOSED'})
         .eq('id', requestId);
+    await _syncJobStatus(requestId, 'SERVICE_CLOSED');
 
     return EscrowPayment.fromJson(response as Map<String, dynamic>);
   }
@@ -341,6 +370,7 @@ class WorkerRepository {
         .from('service_requests')
         .update({'status': 'SERVICE_CLOSED'})
         .eq('id', requestId);
+    await _syncJobStatus(requestId, 'SERVICE_CLOSED');
 
     return EscrowPayment.fromJson(response as Map<String, dynamic>);
   }
@@ -351,6 +381,7 @@ class WorkerRepository {
         .from('service_requests')
         .update({'status': 'FINAL_PAYMENT_PENDING'})
         .eq('id', requestId);
+    await _syncJobStatus(requestId, 'FINAL_PAYMENT_PENDING');
   }
 
   // ── Fetch jobs record for a service request ──
@@ -391,6 +422,7 @@ class WorkerRepository {
         .from('service_requests')
         .update({'status': 'RATED'})
         .eq('id', requestId);
+    await _syncJobStatus(requestId, 'RATED');
 
     // Update worker's rating average (stored proc or manual average)
     final existingReviews = await _client

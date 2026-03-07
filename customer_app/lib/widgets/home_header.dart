@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/location_service.dart';
@@ -13,13 +14,25 @@ class HomeHeader extends StatefulWidget {
 class _HomeHeaderState extends State<HomeHeader> {
   String? _locationLabel;
   bool _loadingLocation = true;
+  StreamSubscription<String>? _refineSub;
 
   @override
   void initState() {
     super.initState();
+    // Subscribe to GPS refinements so the label updates if IP gave a rough
+    // city name and GPS later produces a precise neighbourhood string.
+    _refineSub = LocationService.instance.onLabelRefined.listen((refined) {
+      if (mounted) setState(() => _locationLabel = refined);
+    });
     // Delay until the first frame so the permission dialog has a host Activity
     // to attach to on Android.
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetchLocation());
+  }
+
+  @override
+  void dispose() {
+    _refineSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchLocation() async {
@@ -105,18 +118,23 @@ class _HomeHeaderState extends State<HomeHeader> {
         ),
 
         // Right: notification bell only
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: Material(
             color: AppTheme.backgroundTertiary,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppTheme.borderDefault),
-          ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            size: 20,
-            color: AppTheme.textSecondary,
+            shape: const CircleBorder(
+              side: BorderSide(color: AppTheme.borderDefault),
+            ),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.pushNamed(context, '/notifications'),
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
+            ),
           ),
         ),
       ],

@@ -108,8 +108,8 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
                           onPressed: () => Navigator.pop(context),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                            minWidth: 44,
+                            minHeight: 44,
                           ),
                           icon: const Icon(
                             Icons.arrow_back_ios_new_rounded,
@@ -903,11 +903,11 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
                                       ),
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,
-                                        vertical: 6,
+                                        vertical: 10,
                                       ),
-                                      minimumSize: Size.zero,
+                                      minimumSize: const Size(44, 44),
                                       tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
+                                          MaterialTapTargetSize.padded,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(20),
                                       ),

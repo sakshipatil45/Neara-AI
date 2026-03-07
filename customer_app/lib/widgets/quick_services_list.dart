@@ -71,9 +71,12 @@ class QuickServicesList extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => const WorkerListingScreen()),
               ),
               style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
+                minimumSize: const Size(44, 44),
+                tapTargetSize: MaterialTapTargetSize.padded,
               ),
               child: const Text(
                 'See all',

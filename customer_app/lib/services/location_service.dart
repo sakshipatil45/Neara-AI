@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as dev;
 
@@ -19,48 +20,29 @@ class LocationService {
   /// If true, the app must open system settings to let the user grant it.
   bool get permissionDeniedForever => _deniedForever;
 
+  static const String _fallbackLabel = 'DKTE, Ichalkaranji, Kolhapur';
+
   /// Returns a human-readable location label (e.g. "Koramangala, Bengaluru").
-  /// First tries IP-based geolocation (fast, no permissions needed), then
-  /// refines with GPS + Nominatim reverse geocoding if available.
+  /// Uses GPS → Nominatim reverse geocoding, falling back to a hardcoded
+  /// location when GPS is unavailable or permission is denied.
   Future<String?> getLocationLabel({bool forceRefresh = false}) async {
     if (_locationLabel != null && !forceRefresh) return _locationLabel;
 
-    // Step 1: IP-based location — fast, no permissions, works on emulators.
-    final ipLabel = await _ipBasedLocation();
-    if (ipLabel != null) {
-      dev.log('LocationService: IP label = $ipLabel', name: 'Location');
-      _locationLabel = ipLabel;
-      // Kick off GPS refinement in the background — updates cache for next call.
-      _refineWithGps();
-      return _locationLabel;
-    }
+    // GPS → Nominatim (accurate neighbourhood-level label).
+    final gpsLabel = await _refineWithGps();
+    if (gpsLabel != null) return gpsLabel;
 
-    // Step 2: GPS fallback if IP lookup failed.
-    return _refineWithGps();
+    // Hardcoded fallback so the header always shows something.
+    dev.log('LocationService: using fallback label', name: 'Location');
+    _locationLabel = _fallbackLabel;
+    _labelController.add(_locationLabel!);
+    return _locationLabel;
   }
 
-  /// Quick city-level location from the device's public IP — no permissions.
-  Future<String?> _ipBasedLocation() async {
-    try {
-      final response = await http
-          .get(
-            Uri.parse('https://ipapi.co/json/'),
-            headers: const {'Accept': 'application/json'},
-          )
-          .timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final city = data['city'] as String?;
-        final region = data['region'] as String?;
-        if (city != null && city.isNotEmpty) {
-          return region != null && region.isNotEmpty ? '$city, $region' : city;
-        }
-      }
-    } catch (e) {
-      dev.log('LocationService: IP lookup error: $e', name: 'Location');
-    }
-    return null;
-  }
+  // Stream that emits the label whenever the background GPS refinement
+  // produces a better result than the initial IP lookup.
+  final _labelController = _BroadcastController<String>();
+  Stream<String> get onLabelRefined => _labelController.stream;
 
   /// Tries to get GPS position and reverse-geocode it, updating [_locationLabel].
   Future<String?> _refineWithGps() async {
@@ -77,7 +59,7 @@ class LocationService {
       );
       final response = await http
           .get(uri, headers: const {'Accept-Language': 'en'})
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 5));
       dev.log(
         'LocationService: geocode status ${response.statusCode}',
         name: 'Location',
@@ -102,6 +84,8 @@ class LocationService {
           } else if (suburb != null) {
             _locationLabel = suburb;
           }
+          // Notify the header to update if it previously showed IP / fallback.
+          if (_locationLabel != null) _labelController.add(_locationLabel!);
         }
       }
     } catch (e) {
@@ -200,4 +184,72 @@ class LocationService {
     }
     return '${km.toStringAsFixed(1)} km away';
   }
+}
+
+// Minimal broadcast stream controller without requiring dart:async StreamController.
+class _BroadcastController<T> {
+  final _listeners = <void Function(T)>[];
+
+  void add(T value) {
+    for (final l in _listeners) {
+      l(value);
+    }
+  }
+
+  Stream<T> get stream => _BroadcastStream<T>(this);
+}
+
+class _BroadcastStream<T> extends Stream<T> {
+  final _BroadcastController<T> _controller;
+  _BroadcastStream(this._controller);
+
+  @override
+  StreamSubscription<T> listen(
+    void Function(T)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return _BroadcastSubscription<T>(_controller, onData ?? (_) {});
+  }
+}
+
+class _BroadcastSubscription<T> implements StreamSubscription<T> {
+  final _BroadcastController<T> _controller;
+  void Function(T) _onData;
+  bool _paused = false;
+  bool _cancelled = false;
+
+  _BroadcastSubscription(this._controller, this._onData) {
+    _controller._listeners.add(_dispatch);
+  }
+
+  void _dispatch(T value) {
+    if (!_cancelled && !_paused) _onData(value);
+  }
+
+  @override
+  Future<void> cancel() async {
+    _cancelled = true;
+    _controller._listeners.remove(_dispatch);
+  }
+
+  @override
+  void onData(void Function(T)? handleData) => _onData = handleData ?? (_) {};
+  @override
+  void onError(Function? handleError) {}
+  @override
+  void onDone(void Function()? handleDone) {}
+  @override
+  void pause([Future<void>? resumeSignal]) {
+    _paused = true;
+    resumeSignal?.then((_) => _paused = false);
+  }
+
+  @override
+  void resume() => _paused = false;
+  @override
+  bool get isPaused => _paused;
+  @override
+  Future<E> asFuture<E>([E? futureValue]) => Future.value(futureValue as E);
 }

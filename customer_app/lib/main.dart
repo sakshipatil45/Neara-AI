@@ -107,6 +107,7 @@ class _CustomerAppState extends State<CustomerApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'NEARA Customer',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       navigatorKey: navigatorKey,
       initialRoute: '/',

@@ -612,29 +612,34 @@ class _AdvancePayCard extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pay Now (Advance)',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textTertiary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pay Now (Advance)',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textTertiary,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Rs.${p.advanceAmount.toStringAsFixed(0)}',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      color: AppTheme.successGreen,
-                      fontWeight: FontWeight.w800,
+                    Text(
+                      'Rs.${p.advanceAmount.toStringAsFixed(0)}',
+                      style: Theme.of(context).textTheme.headlineLarge
+                          ?.copyWith(
+                            color: AppTheme.successGreen,
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
-                  ),
-                  Text(
-                    'Balance on completion: Rs.${p.balanceAmount.toStringAsFixed(0)}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+                    Text(
+                      'Balance on completion: Rs.${p.balanceAmount.toStringAsFixed(0)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 12),
               FilledButton.icon(
                 icon: const Icon(Icons.payment_rounded, size: 18),
                 label: const Text('Pay Escrow'),
@@ -721,29 +726,36 @@ class _FinalPayCard extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Service Completed — Release Balance',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textTertiary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Service Completed — Release Balance',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textTertiary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  Text(
-                    'Rs.${p.balanceAmount.toStringAsFixed(0)}',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      color: AppTheme.warningOrange,
-                      fontWeight: FontWeight.w800,
+                    Text(
+                      'Rs.${p.balanceAmount.toStringAsFixed(0)}',
+                      style: Theme.of(context).textTheme.headlineLarge
+                          ?.copyWith(
+                            color: AppTheme.warningOrange,
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
-                  ),
-                  Text(
-                    'Worker: ${p.workerName ?? "Worker"}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+                    Text(
+                      'Worker: ${p.workerName ?? "Worker"}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 12),
               FilledButton.icon(
                 icon: const Icon(Icons.lock_open_rounded, size: 18),
                 label: const Text('Pay Balance'),

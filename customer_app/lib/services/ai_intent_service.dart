@@ -190,7 +190,31 @@ class AiIntentService {
         ..writeln('Rules:')
         ..writeln('- service_type MUST be one of the English labels above.')
         ..writeln('- Confidence must be between 0.0 and 1.0.')
-        ..writeln('- Confidence below 0.6 means ambiguity.')
+        ..writeln('- Confidence scoring guide:')
+        ..writeln(
+          '  0.90-1.00: Crystal-clear request. Category and urgency are obvious from the words alone.',
+        )
+        ..writeln(
+          '    Examples: "bike puncture", "water pipe leaking", "AC not working", "gas leak".',
+        )
+        ..writeln(
+          '  0.75-0.89: Clear request but minor ambiguity in urgency or exact sub-service.',
+        )
+        ..writeln(
+          '    Examples: "fan making noise", "vehicle problem on highway".',
+        )
+        ..writeln(
+          '  0.60-0.74: Some ambiguity — category guessable but not certain.',
+        )
+        ..writeln(
+          '    Examples: "something broken at home", "need help with repair".',
+        )
+        ..writeln(
+          '  Below 0.60: Very vague or completely unrelated. Set needs_clarification: true.',
+        )
+        ..writeln(
+          '- Do NOT be conservative. If the category match is obvious, use 0.90+.',
+        )
         ..writeln('- Do not output anything outside JSON.');
 
       // Build user message

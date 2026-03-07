@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' hide Path;
 
 import '../models/worker_model.dart';
@@ -24,6 +26,8 @@ class WorkerMapScreen extends StatefulWidget {
 class _WorkerMapScreenState extends State<WorkerMapScreen> {
   Position? _userPos;
   bool _loading = true;
+  List<LatLng> _routePoints = [];
+  bool _routeLoading = false;
   final MapController _mapCtrl = MapController();
 
   LatLng get _workerLatLng =>
@@ -42,6 +46,38 @@ class _WorkerMapScreenState extends State<WorkerMapScreen> {
         _userPos = pos;
         _loading = false;
       });
+      if (pos != null) _fetchRoute(pos);
+    }
+  }
+
+  /// Fetches a road-snapped route from OSRM (free, no API key).
+  Future<void> _fetchRoute(Position userPos) async {
+    setState(() => _routeLoading = true);
+    try {
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${userPos.longitude},${userPos.latitude};'
+        '${widget.worker.longitude},${widget.worker.latitude}'
+        '?overview=full&geometries=geojson',
+      );
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final routes = data['routes'] as List<dynamic>?;
+        if (routes != null && routes.isNotEmpty) {
+          final coords = (routes[0]['geometry']['coordinates'] as List<dynamic>)
+              .map(
+                (c) =>
+                    LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()),
+              )
+              .toList();
+          if (mounted) setState(() => _routePoints = coords);
+        }
+      }
+    } catch (_) {
+      // Route unavailable — straight line shown as fallback
+    } finally {
+      if (mounted) setState(() => _routeLoading = false);
     }
   }
 
@@ -137,14 +173,16 @@ class _WorkerMapScreenState extends State<WorkerMapScreen> {
                       userAgentPackageName: 'com.neara.customer_app',
                     ),
 
-                    // Polyline user → worker
+                    // Polyline user → worker (road-snapped via OSRM, straight fallback)
                     if (userLatLng != null)
                       PolylineLayer(
                         polylines: [
                           Polyline(
-                            points: [userLatLng, _workerLatLng],
-                            strokeWidth: 2.5,
-                            color: AppTheme.primaryBlue.withValues(alpha: 0.7),
+                            points: _routePoints.isNotEmpty
+                                ? _routePoints
+                                : [userLatLng, _workerLatLng],
+                            strokeWidth: 4.0,
+                            color: AppTheme.primaryBlue.withValues(alpha: 0.85),
                           ),
                         ],
                       ),
