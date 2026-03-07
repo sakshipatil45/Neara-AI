@@ -62,8 +62,29 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) setState(() => _secondsElapsed++);
+      if (mounted) {
+        setState(() => _secondsElapsed++);
+
+        // Auto-check for advance payment every 5 seconds if worker has arrived
+        if (_secondsElapsed % 5 == 0 && _currentStatus == 'WORKER_ARRIVED') {
+          _checkAdvanceAuto();
+        }
+      }
     });
+  }
+
+  Future<void> _checkAdvanceAuto() async {
+    final requestId = widget.jobData['id'];
+    if (requestId == null) return;
+
+    final isPaid = await ref
+        .read(dashboardServiceProvider)
+        .hasAdvancePayment(requestId);
+
+    if (isPaid && mounted && _currentStatus == 'WORKER_ARRIVED') {
+      print('DEBUG: [JobInProgress] Payment detected! Auto-transitioning...');
+      _updateStatus('ADVANCE_PAYMENT_DONE');
+    }
   }
 
   @override
@@ -115,37 +136,59 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
     try {
       final id = widget.jobData['id'];
       final workerId = widget.jobData['worker_id'];
-      final totalAmount = _proposalData != null
-          ? ((_proposalData!['inspection_fee'] ?? 0) +
-                    (_proposalData!['service_cost'] ?? 0))
-                .toDouble()
-          : 0.0;
+
+      // Ensure proposal data is loaded before proceeding with completion
+      if (_proposalData == null) {
+        await _fetchProposalData();
+      }
+
+      final inspectionFee = (_proposalData?['inspection_fee'] ?? 0).toDouble();
+      final serviceCost = (_proposalData?['service_cost'] ?? 0).toDouble();
+      double totalAmount = inspectionFee + serviceCost;
+
+      // Fallback if proposal data hasn't loaded (unlikely but safe)
+      if (totalAmount == 0) {
+        final est = widget.jobData['estimated_payment']?.toString() ?? '0';
+        totalAmount =
+            double.tryParse(est.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      }
 
       if (nextStatus == 'SERVICE_COMPLETED' || nextStatus == 'COMPLETED') {
+        final advancePercent = (_proposalData?['advance_percent'] ?? 0)
+            .toDouble();
+        final advanceAmount = totalAmount * (advancePercent / 100);
+        final balanceAmount = totalAmount - advanceAmount;
+
         await ref
             .read(dashboardServiceProvider)
-            .completeJob(id, amount: totalAmount, workerId: workerId);
+            .completeJob(
+              id,
+              amount: balanceAmount > 0 ? balanceAmount : totalAmount,
+              workerId: workerId,
+            );
       } else {
+        // Special case for Confirm Advance button: check payment first
+        if (nextStatus == 'ADVANCE_PAYMENT_DONE') {
+          final isPaid = await ref
+              .read(dashboardServiceProvider)
+              .hasAdvancePayment(id);
+          if (!isPaid) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Waiting for customer to pay advance...'),
+                  backgroundColor: Colors.blueGrey,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+            return;
+          }
+        }
+
         await ref
             .read(dashboardServiceProvider)
             .updateJobStatus(id, nextStatus);
-
-        // Record advance payment if applicable
-        if (nextStatus == 'ADVANCE_PAYMENT_DONE' && _proposalData != null) {
-          final advancePercent = (_proposalData!['advance_percent'] ?? 0)
-              .toDouble();
-          if (advancePercent > 0) {
-            final advanceAmount = totalAmount * (advancePercent / 100);
-            await ref
-                .read(dashboardServiceProvider)
-                .recordPayment(
-                  requestId: id,
-                  workerId: workerId,
-                  amount: advanceAmount,
-                  type: 'ADVANCE',
-                );
-          }
-        }
       }
 
       setState(() => _currentStatus = nextStatus);
@@ -155,7 +198,10 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (c) => JobCompletionScreen(jobData: widget.jobData),
+              builder: (c) => JobCompletionScreen(
+                jobData: widget.jobData,
+                displayAmount: '₹${totalAmount.toStringAsFixed(0)}',
+              ),
             ),
           );
         }
@@ -349,17 +395,31 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
             _photoBox(
               'Before',
               _beforePhotoUrl,
-              _currentStatus == 'WORKER_ARRIVED' ? () => _pick(true) : null,
+              (_currentStatus == 'WORKER_ARRIVED' ||
+                      _currentStatus == 'ADVANCE_PAYMENT_DONE' ||
+                      _currentStatus == 'SERVICE_STARTED')
+                  ? () => _pick(true)
+                  : null,
               isEnabled:
-                  _beforePhotoUrl != null || _currentStatus == 'WORKER_ARRIVED',
+                  _beforePhotoUrl != null ||
+                  _currentStatus == 'WORKER_ARRIVED' ||
+                  _currentStatus == 'ADVANCE_PAYMENT_DONE' ||
+                  _currentStatus == 'SERVICE_STARTED',
             ),
             const SizedBox(width: 16),
             _photoBox(
               'After',
               _afterPhotoUrl,
-              _currentStatus == 'SERVICE_STARTED' ? () => _pick(false) : null,
+              (_currentStatus == 'SERVICE_STARTED' ||
+                      _currentStatus == 'SERVICE_COMPLETED' ||
+                      _currentStatus == 'COMPLETED')
+                  ? () => _pick(false)
+                  : null,
               isEnabled:
-                  _afterPhotoUrl != null || _currentStatus == 'SERVICE_STARTED',
+                  _afterPhotoUrl != null ||
+                  _currentStatus == 'SERVICE_STARTED' ||
+                  _currentStatus == 'SERVICE_COMPLETED' ||
+                  _currentStatus == 'COMPLETED',
             ),
           ],
         ),

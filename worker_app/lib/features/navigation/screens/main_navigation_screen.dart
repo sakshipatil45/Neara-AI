@@ -6,6 +6,8 @@ import '../../jobs/screens/jobs_screen.dart';
 import '../../requests/screens/requests_screen.dart';
 import '../../earnings/screens/earnings_screen.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../providers/auth_provider.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -17,6 +19,21 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      try {
+        final user = await ref.read(currentUserProvider.future);
+        if (user != null) {
+          ref.read(notificationServiceProvider).startListening(user.id);
+        }
+      } catch (e) {
+        debugPrint('Notification init error: $e');
+      }
+    });
+  }
 
   final List<Widget> _screens = [
     const DashboardScreen(),

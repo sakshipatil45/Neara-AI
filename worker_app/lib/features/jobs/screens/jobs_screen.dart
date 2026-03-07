@@ -105,7 +105,7 @@ class _JobsList extends ConsumerWidget {
 
         final jobsFuture = ref
             .watch(dashboardServiceProvider)
-            .getJobsByStatus(worker.id!, statuses);
+            .getJobsByStatus(worker.id ?? 0, statuses);
 
         return FutureBuilder<List<Map<String, dynamic>>>(
           future: jobsFuture,

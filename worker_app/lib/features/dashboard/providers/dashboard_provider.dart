@@ -136,9 +136,17 @@ final activeJobsProvider = FutureProvider<List<Map<String, dynamic>>>((
 // Full Earnings Stats Provider
 final earningsStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final worker = await ref.watch(currentWorkerProvider.future);
-  if (worker == null)
-    return {'today': 0.0, 'week': 0.0, 'total': 0.0, 'history': []};
+  if (worker == null) {
+    return {'total': 0.0, 'history': []};
+  }
 
   final service = ref.watch(dashboardServiceProvider);
-  return await service.getEarningsStats(worker.id);
+  final stats = await service.getEarningsStats(worker.id);
+
+  final history = stats['history'] as List<dynamic>? ?? [];
+
+  return {
+    'total': (stats['total'] as num?)?.toDouble() ?? 0.0,
+    'history': history,
+  };
 });

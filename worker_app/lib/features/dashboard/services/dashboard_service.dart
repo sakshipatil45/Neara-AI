@@ -72,6 +72,29 @@ class DashboardService {
           .update({'status': status})
           .eq('id', requestId);
 
+      // Proactive earning recording for Advance Payment
+      if (status.toUpperCase() == 'ADVANCE_PAYMENT_DONE' ||
+          status == 'Advance_payment_done') {
+        final payment = await _supabase
+            .from('payments')
+            .select('advance_amount, service_requests(worker_id)')
+            .eq('request_id', requestId)
+            .maybeSingle();
+
+        if (payment != null) {
+          final amt = (payment['advance_amount'] as num?)?.toDouble() ?? 0.0;
+          final workerId = payment['service_requests']?['worker_id'];
+          if (amt > 0 && workerId != null) {
+            await recordEarning(
+              requestId: requestId,
+              workerId: workerId,
+              amount: amt,
+              type: 'ADVANCE',
+            );
+          }
+        }
+      }
+
       print(
         'DEBUG: [updateJobStatus] Status updated to $status for request $requestId',
       );
@@ -108,25 +131,25 @@ class DashboardService {
       ).toIso8601String();
 
       print(
-        'DEBUG: [getTodayEarnings] Checking service_requests for worker $workerId since $startOfDay',
+        'DEBUG: [getTodayEarnings] Checking payments table for worker $workerId since $startOfDay',
       );
 
+      // Fetch all payments linked to worker's requests (In Progress or Completed)
       final response = await _supabase
-          .from('service_requests')
-          .select('estimated_payment')
-          .eq('worker_id', workerId)
-          .eq('status', 'SERVICE_COMPLETED')
+          .from('payments')
+          .select(
+            'advance_amount, balance_amount, service_requests!inner(worker_id)',
+          )
+          .eq('service_requests.worker_id', workerId)
           .gte('created_at', startOfDay);
 
       double totalEarnings = 0;
       int jobsToday = response.length;
 
-      for (var job in response) {
-        final paymentStr = job['estimated_payment']?.toString() ?? '₹0';
-        final price =
-            double.tryParse(paymentStr.replaceAll(RegExp(r'[^0-9]'), '')) ??
-            0.0;
-        totalEarnings += price;
+      for (var payment in response) {
+        final adv = (payment['advance_amount'] as num?)?.toDouble() ?? 0.0;
+        final bal = (payment['balance_amount'] as num?)?.toDouble() ?? 0.0;
+        totalEarnings += (adv + bal);
       }
 
       print(
@@ -278,86 +301,109 @@ class DashboardService {
     }
   }
 
-  // Get full earnings stats (Today, Week, Month, All Time)
+  // Get full earnings stats (Total)
   Future<Map<String, dynamic>> getEarningsStats(dynamic workerId) async {
     try {
-      final now = DateTime.now();
       print(
-        'DEBUG: [getEarningsStats] Start for worker: $workerId (service_requests source)',
+        'DEBUG: [getEarningsStats] Fetching from payments table for worker: $workerId',
       );
 
-      final startOfToday = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).toIso8601String();
-      final firstDayOfWeek = now.subtract(Duration(days: now.weekday - 1));
-      final startOfWeek = DateTime(
-        firstDayOfWeek.year,
-        firstDayOfWeek.month,
-        firstDayOfWeek.day,
-      ).toIso8601String();
-      final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
-
-      // Fetch all completed jobs for this worker
       final response = await _supabase
-          .from('service_requests')
-          .select('estimated_payment, created_at, service_category')
-          .eq('worker_id', workerId)
-          .eq('status', 'SERVICE_COMPLETED')
+          .from('payments')
+          .select(
+            '*, service_requests!inner(worker_id, service_category, status)',
+          )
+          .eq('service_requests.worker_id', workerId)
           .order('created_at', ascending: false);
 
-      print(
-        'DEBUG: [getEarningsStats] Completed jobs found: ${response.length}',
-      );
-
-      double today = 0;
-      double week = 0;
-      double month = 0;
       double total = 0;
+      List<Map<String, dynamic>> history = [];
 
-      for (var job in response) {
+      for (var record in response) {
         try {
-          final paymentStr = job['estimated_payment']?.toString() ?? '₹0';
-          final amount =
-              double.tryParse(paymentStr.replaceAll(RegExp(r'[^0-9]'), '')) ??
-              0.0;
-          final createdAt = DateTime.parse(job['created_at']).toLocal();
+          final serviceData =
+              record['service_requests'] as Map<String, dynamic>?;
+          final advanceAmt =
+              (record['advance_amount'] as num?)?.toDouble() ?? 0.0;
+          final balanceAmt =
+              (record['balance_amount'] as num?)?.toDouble() ?? 0.0;
 
-          total += amount;
-          if (createdAt.isAfter(DateTime.parse(startOfToday))) {
-            today += amount;
+          total += (advanceAmt + balanceAmt);
+
+          if (advanceAmt > 0) {
+            history.add({
+              'amount': advanceAmt,
+              'service_category': serviceData?['service_category'] ?? 'Service',
+              'created_at': record['created_at'],
+              'type': 'ADVANCE',
+              'status': serviceData?['status'],
+              'request_id': record['request_id'],
+            });
           }
-          if (createdAt.isAfter(DateTime.parse(startOfWeek))) {
-            week += amount;
-          }
-          if (createdAt.isAfter(DateTime.parse(startOfMonth))) {
-            month += amount;
+
+          if (balanceAmt > 0) {
+            history.add({
+              'amount': balanceAmt,
+              'service_category': serviceData?['service_category'] ?? 'Service',
+              'created_at': record['created_at'],
+              'type': 'FINAL',
+              'status': serviceData?['status'],
+              'request_id': record['request_id'],
+            });
           }
         } catch (itemErr) {
-          print('DEBUG: [getEarningsStats] Error parsing job item: $itemErr');
+          print(
+            'DEBUG: [getEarningsStats] Error parsing record item: $itemErr',
+          );
         }
       }
 
-      print(
-        'DEBUG: [getEarningsStats] CALC: Today=₹$today, Week=₹$week, Month=₹$month, Total=₹$total',
-      );
+      print('DEBUG: [getEarningsStats] SUCCESS: Total=₹$total');
 
-      return {
-        'today': today,
-        'week': week,
-        'month': month,
-        'total': total,
-        'history': List<Map<String, dynamic>>.from(response),
-      };
+      return {'total': total, 'history': history};
     } catch (e, stack) {
       print('DEBUG: [getEarningsStats] ERROR: $e');
       print('DEBUG: [getEarningsStats] STACK: $stack');
-      return {'today': 0, 'week': 0, 'month': 0, 'total': 0, 'history': []};
+      return {'total': 0.0, 'history': []};
     }
   }
 
-  // Record a payment entry
+  // Record a ledger entry in the earnings table
+  Future<void> recordEarning({
+    required dynamic requestId,
+    required dynamic workerId,
+    required double amount,
+    required String type, // 'ADVANCE' or 'FINAL'
+  }) async {
+    try {
+      print(
+        'DEBUG: [recordEarning] LEDGER: Recording ₹$amount ($type) for request $requestId',
+      );
+
+      // Find the payment_id if it exists
+      final payment = await _supabase
+          .from('payments')
+          .select('id')
+          .eq('request_id', requestId)
+          .maybeSingle();
+
+      if (amount <= 0) return;
+
+      await _supabase.from('earnings').upsert({
+        'worker_id': workerId,
+        'request_id': requestId,
+        'payment_id': payment?['id'],
+        'amount': amount,
+        'type': type,
+      }, onConflict: 'request_id,type');
+
+      print('DEBUG: [recordEarning] Success');
+    } catch (e) {
+      print('DEBUG: [recordEarning] Error: $e');
+    }
+  }
+
+  // Record a payment entry in the payments table
   Future<void> recordPayment({
     required dynamic requestId,
     required dynamic workerId,
@@ -366,20 +412,42 @@ class DashboardService {
   }) async {
     try {
       print(
-        'DEBUG: [recordPayment] Recording $type payment of ₹$amount for request $requestId',
+        'DEBUG: [recordPayment] DB: Updating payments table for request $requestId',
       );
 
-      await _supabase.from('payments').insert({
-        'request_id': requestId,
-        'worker_id': workerId,
-        'amount': amount,
-        'type': type,
-      });
+      final column = type == 'ADVANCE' ? 'advance_amount' : 'balance_amount';
 
-      print('DEBUG: [recordPayment] Payment recorded successfully');
+      final existing = await _supabase
+          .from('payments')
+          .select()
+          .eq('request_id', requestId)
+          .maybeSingle();
+
+      if (existing != null) {
+        await _supabase
+            .from('payments')
+            .update({
+              column: amount,
+              'payment_status': type == 'FINAL' ? 'PAID' : 'ADVANCE_PAID',
+            })
+            .eq('request_id', requestId);
+      } else {
+        await _supabase.from('payments').insert({
+          'request_id': requestId,
+          column: amount,
+          'payment_status': type == 'ADVANCE' ? 'ADVANCE_PAID' : 'PARTIAL_PAID',
+        });
+      }
+
+      // Also record in the earnings ledger
+      await recordEarning(
+        requestId: requestId,
+        workerId: workerId,
+        amount: amount,
+        type: type,
+      );
     } catch (e) {
       print('DEBUG: [recordPayment] ERROR: $e');
-      // Even if payment recording fails, we shouldn't block the UI, but we log it.
     }
   }
 
@@ -476,6 +544,22 @@ class DashboardService {
     }
   }
 
+  // Check if an advance payment exists for a request
+  Future<bool> hasAdvancePayment(dynamic requestId) async {
+    try {
+      final response = await _supabase
+          .from('payments')
+          .select()
+          .eq('request_id', requestId)
+          .not('advance_amount', 'is', null)
+          .maybeSingle();
+      return response != null;
+    } catch (e) {
+      print('DEBUG: [hasAdvancePayment] ERROR: $e');
+      return false;
+    }
+  }
+
   // Fetch accepted proposal for a request
   Future<Map<String, dynamic>?> getAcceptedProposal(dynamic requestId) async {
     try {
@@ -483,7 +567,7 @@ class DashboardService {
           .from('proposals')
           .select()
           .eq('request_id', requestId)
-          .eq('status', 'ACCEPTED')
+          .or('status.eq.ACCEPTED,status.eq.accepted')
           .maybeSingle();
       return response;
     } catch (e) {

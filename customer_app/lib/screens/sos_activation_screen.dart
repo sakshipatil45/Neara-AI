@@ -265,9 +265,16 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
           children: [
             // ── Top bar ───────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
               child: Row(
                 children: [
+                  // Back arrow
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_ios_new,
+                        size: 20, color: Colors.white),
+                    tooltip: 'Back',
+                  ),
                   const Expanded(
                     child: Text(
                       'Emergency SOS',
@@ -491,10 +498,10 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
         headline = '🎙️ Listening...';
         subtitle = 'Speak your emergency message clearly.';
       case _SosPhase.summarized:
-        headline = _isSummarizing ? '⏳ Generating Summary...' : '✅ Message Ready';
+        headline = _isSummarizing ? '⏳ Generating Summary...' : '🚨 Emergency Alert';
         subtitle = _isSummarizing
             ? 'AI is processing your message...'
-            : 'Emergency summary sent to contacts.';
+            : '';
     }
 
     return Column(
@@ -508,16 +515,18 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          subtitle,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white60,
-            fontSize: 13,
-            height: 1.5,
+        if (subtitle.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 13,
+              height: 1.5,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -606,19 +615,6 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.emergency, color: _kRed, size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'Emergency Summary',
-                    style: TextStyle(
-                        color: _kRed,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
               const SizedBox(height: 10),
               if (_isSummarizing)
                 const Center(
