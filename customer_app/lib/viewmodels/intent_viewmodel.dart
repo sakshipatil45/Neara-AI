@@ -197,9 +197,12 @@ class IntentViewModel extends Notifier<IntentState> {
 
     try {
       final sttService = ref.read(sttServiceProvider);
-      final transcript = await sttService.stopAndTranscribe();
+      final rawTranscript = await sttService.stopAndTranscribe();
 
-      if (transcript.trim().isEmpty) {
+      // Preprocess and validate transcript
+      final cleanedTranscript = _preprocessTranscript(rawTranscript);
+
+      if (cleanedTranscript == null) {
         state = IntentEmpty();
         Future.delayed(const Duration(seconds: 2), () {
           if (state is IntentEmpty) state = IntentIdle();
@@ -208,11 +211,148 @@ class IntentViewModel extends Notifier<IntentState> {
       }
 
       final aiService = ref.read(aiIntentServiceProvider);
-      final intent = await aiService.analyzeIntent(transcript.trim());
+      final intent = await aiService.analyzeIntent(cleanedTranscript);
       state = IntentSuccess(intent);
     } catch (e) {
       state = IntentError('Failed to analyze audio: $e');
     }
+  }
+
+  // ── Text Preprocessing ────────────────────────────────────────────────
+
+  /// Normalizes text by removing extra whitespace, filler words, and cleaning punctuation.
+  String _normalizeText(String text) {
+    return text
+        .trim()
+        .toLowerCase()
+        // Remove extra whitespace
+        .replaceAll(RegExp(r'\s+'), ' ')
+        // Remove common filler words
+        .replaceAll(RegExp(r'\b(um|uh|er|ah|like|you know|so|well)\b'), '')
+        // Clean excessive punctuation but keep basic ones
+        .replaceAll(RegExp(r'[.]{2,}'), '.')
+        .replaceAll(RegExp(r'[!]{2,}'), '!')
+        .replaceAll(RegExp(r'[?]{2,}'), '?')
+        // Remove extra spaces again after filler word removal
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  /// Detects if text contains gibberish or meaningless patterns.
+  bool _isGibberish(String text) {
+    if (text.length < 2) return true;
+
+    // Check for repeated characters (aaaaa, hehehe)
+    if (RegExp(r'(.)\1{4,}').hasMatch(text)) {
+      return true;
+    }
+
+    // Check for excessive repeated patterns (lalala, nanana)
+    if (RegExp(r'(\w{1,3})\1{3,}').hasMatch(text)) {
+      return true;
+    }
+
+    final words = text.split(' ');
+    if (words.isEmpty) return true;
+
+    int problematicWords = 0;
+
+    for (final word in words) {
+      if (word.length < 1) continue;
+
+      // Very long words are suspicious (>20 chars)
+      if (word.length > 20) {
+        problematicWords++;
+        continue;
+      }
+
+      // Words with no vowels (except very short ones)
+      if (word.length > 3 && !RegExp(r'[aeiouAEIOU]').hasMatch(word)) {
+        problematicWords++;
+        continue;
+      }
+
+      // Words that are just repeated characters
+      if (RegExp(r'^(.)\1+$').hasMatch(word)) {
+        problematicWords++;
+      }
+    }
+
+    // If more than 40% of words seem problematic, it's likely gibberish
+    return problematicWords > (words.length * 0.4);
+  }
+
+  /// Validates if text has reasonable language characteristics.
+  bool _isValidLanguage(String text) {
+    if (text.length < 2) return false;
+
+    // Check for reasonable character distribution
+    final hasDevanagari = RegExp(r'[\u0900-\u097F]').hasMatch(text);
+    final hasLatin = RegExp(r'[a-zA-Z]').hasMatch(text);
+    final hasNumbers = RegExp(r'[0-9]').hasMatch(text);
+    final hasOtherScripts = RegExp(
+      r'[\u0980-\u0CFF]',
+    ).hasMatch(text); // Bengali, Tamil, etc.
+
+    // Should have at least some recognizable script
+    if (!hasDevanagari && !hasLatin && !hasOtherScripts) {
+      return false;
+    }
+
+    // Check for random symbol spam
+    final symbolCount = RegExp(r'[^\w\s\u0900-\u0CFF]').allMatches(text).length;
+    return symbolCount < (text.length * 0.3); // Less than 30% symbols
+  }
+
+  /// Validates if text length is within reasonable bounds.
+  bool _isValidLength(String text) {
+    final words = text.trim().split(RegExp(r'\s+'));
+    // Should have 1-50 words for a reasonable voice request
+    return words.length >= 1 && words.length <= 50 && text.length <= 500;
+  }
+
+  /// Preprocesses transcript with validation and normalization.
+  /// Returns null if transcript is invalid/gibberish.
+  String? _preprocessTranscript(String rawTranscript) {
+    final cleaned = rawTranscript.trim();
+
+    // Basic validation
+    if (cleaned.isEmpty) {
+      return null;
+    }
+
+    // Length validation
+    if (!_isValidLength(cleaned)) {
+      print(
+        'STT: Invalid length - transcript: "${cleaned.substring(0, cleaned.length > 50 ? 50 : cleaned.length)}..."',
+      );
+      return null;
+    }
+
+    // Language validation
+    if (!_isValidLanguage(cleaned)) {
+      print(
+        'STT: Invalid language/script detected in: "${cleaned.substring(0, cleaned.length > 50 ? 50 : cleaned.length)}..."',
+      );
+      return null;
+    }
+
+    // Normalize text
+    final normalized = _normalizeText(cleaned);
+
+    // Gibberish detection (after normalization)
+    if (_isGibberish(normalized)) {
+      print('STT: Gibberish detected in normalized text: "$normalized"');
+      return null;
+    }
+
+    // Final validation - ensure we still have meaningful content
+    if (normalized.isEmpty || normalized.length < 2) {
+      return null;
+    }
+
+    print('STT: Preprocessed "$rawTranscript" → "$normalized"');
+    return normalized;
   }
 
   void reset() {
