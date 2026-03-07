@@ -39,8 +39,8 @@ class WorkersState {
 class WorkersViewModel extends Notifier<WorkersState> {
   @override
   WorkersState build() {
-    // Auto-load workers when provider is first created
-    Future.microtask(() => loadWorkers());
+    // Workers are loaded explicitly by WorkerListingScreen.initState()
+    // to avoid firing a Supabase query before the user visits the Search tab.
     return const WorkersState();
   }
 

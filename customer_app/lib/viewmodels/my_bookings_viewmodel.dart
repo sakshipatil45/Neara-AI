@@ -273,24 +273,34 @@ class ProposalsHubState {
 
 class ProposalsHubNotifier extends Notifier<ProposalsHubState> {
   RealtimeChannel? _channel;
+  bool _disposed = false;
 
   @override
   ProposalsHubState build() {
-    Future.microtask(load);
+    _disposed = false;
 
-    _channel = Supabase.instance.client
-        .channel('proposals_hub_ch')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'proposals',
-          callback: (_) => load(),
-        )
-        .subscribe();
-
+    // Register cleanup upfront so it runs even if dispose happens before
+    // the delayed callback fires.
     ref.onDispose(() {
+      _disposed = true;
       _channel?.unsubscribe();
       _channel = null;
+    });
+
+    // Defer heavy I/O (HTTP + WebSocket) until after the first frame renders
+    // so the home screen is responsive immediately on startup.
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (_disposed) return;
+      load();
+      _channel = Supabase.instance.client
+          .channel('proposals_hub_ch')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'proposals',
+            callback: (_) => load(),
+          )
+          .subscribe();
     });
 
     return const ProposalsHubState();

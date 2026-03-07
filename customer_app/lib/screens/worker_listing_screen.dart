@@ -33,13 +33,15 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialCategory != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref
-            .read(workersViewModelProvider.notifier)
-            .filterByCategory(widget.initialCategory!);
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notifier = ref.read(workersViewModelProvider.notifier);
+      if (widget.initialCategory != null) {
+        notifier.filterByCategory(widget.initialCategory!);
+      } else if (ref.read(workersViewModelProvider).workers.isEmpty) {
+        // First visit — load the default (all) worker list.
+        notifier.loadWorkers();
+      }
+    });
   }
 
   static const _categories = [
