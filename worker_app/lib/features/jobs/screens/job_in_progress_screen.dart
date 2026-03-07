@@ -4,7 +4,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
 import 'job_completion_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 
@@ -20,8 +19,7 @@ class JobInProgressScreen extends ConsumerStatefulWidget {
 
 class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
   bool _isLoading = false;
-  late Timer _timer;
-  int _secondsElapsed = 0;
+  late Timer _pollTimer;
   Map<String, dynamic>? _proposalData;
   String? _beforePhotoUrl;
   String? _afterPhotoUrl;
@@ -43,13 +41,6 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
     setState(() {
       _beforePhotoUrl = widget.jobData['before_photo_url'];
       _afterPhotoUrl = widget.jobData['after_photo_url'];
-
-      // If we have a started_at time, calculate elapsed seconds
-      final startedAtStr = widget.jobData['started_at'];
-      if (startedAtStr != null) {
-        final startedAt = DateTime.parse(startedAtStr);
-        _secondsElapsed = DateTime.now().difference(startedAt).inSeconds;
-      }
     });
 
     final proposal = await ref
@@ -61,12 +52,10 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
   }
 
   void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted) {
-        setState(() => _secondsElapsed++);
-
         // Auto-check for advance payment every 5 seconds if worker has arrived
-        if (_secondsElapsed % 5 == 0 && _currentStatus == 'WORKER_ARRIVED') {
+        if (_currentStatus == 'WORKER_ARRIVED') {
           _checkAdvanceAuto();
         }
       }
@@ -89,15 +78,8 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
 
   @override
   void dispose() {
-    _timer.cancel();
+    _pollTimer.cancel();
     super.dispose();
-  }
-
-  String _formatDuration(int seconds) {
-    final h = (seconds ~/ 3600).toString().padLeft(2, '0');
-    final m = ((seconds % 3600) ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$h:$m:$s';
   }
 
   Future<void> _callCustomer() async {
@@ -236,8 +218,6 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            _buildTimer(),
-            const SizedBox(height: 24),
             _buildInfoCard(),
             const SizedBox(height: 24),
             _buildPhotoSection(),
@@ -247,41 +227,6 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildTimer() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppTheme.primaryBlue, const Color(0xFF3B82F6)],
-        ),
-        borderRadius: BorderRadius.circular(32),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'ELAPSED TIME',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _formatDuration(_secondsElapsed),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 48,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    ).animate().scale();
   }
 
   Widget _buildInfoCard() {

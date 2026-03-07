@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
 import 'active_job_screen.dart';
+import 'job_in_progress_screen.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class JobsScreen extends ConsumerStatefulWidget {
@@ -19,7 +20,7 @@ class _JobsScreenState extends ConsumerState<JobsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -49,6 +50,7 @@ class _JobsScreenState extends ConsumerState<JobsScreen>
           unselectedLabelColor: const Color(0xFF64748B),
           indicatorColor: AppTheme.primaryBlue,
           indicatorWeight: 3,
+          isScrollable: true,
           labelStyle: const TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 14,
@@ -56,6 +58,7 @@ class _JobsScreenState extends ConsumerState<JobsScreen>
           tabs: const [
             Tab(text: 'Pending'),
             Tab(text: 'Active'),
+            Tab(text: 'Advance Paid'),
             Tab(text: 'Completed'),
           ],
         ),
@@ -64,23 +67,23 @@ class _JobsScreenState extends ConsumerState<JobsScreen>
         controller: _tabController,
         children: [
           _JobsList(
-            statuses: const [
-              'accepted',
-              'PENDING',
-              'pending',
-              'CREATED',
-              'created',
-            ],
+            statuses: const ['PENDING', 'pending', 'ACCEPTED', 'accepted'],
           ),
           _JobsList(
             statuses: const [
               'PROPOSAL_ACCEPTED',
               'WORKER_COMING',
               'SERVICE_STARTED',
+              'IN_PROGRESS',
               'in_progress',
             ],
           ),
-          _JobsList(statuses: const ['completed', 'SERVICE_COMPLETED']),
+          _JobsList(
+            statuses: const ['ADVANCE_PAYMENT_DONE', 'advance_payment_done'],
+          ),
+          _JobsList(
+            statuses: const ['COMPLETED', 'completed', 'SERVICE_COMPLETED'],
+          ),
         ],
       ),
     );
@@ -179,11 +182,22 @@ class _JobCardState extends ConsumerState<_JobCard> {
 
   void _onTap() {
     final status = widget.job['status']?.toString().toUpperCase();
-    if (status == 'SERVICE_COMPLETED' || status == 'COMPLETED') {
-      // Maybe show summary?
+
+    // Direct active jobs straight to tracking screen
+    if (status == 'WORKER_COMING' ||
+        status == 'SERVICE_STARTED' ||
+        status == 'IN_PROGRESS' ||
+        status == 'ADVANCE_PAYMENT_DONE') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => JobInProgressScreen(jobData: widget.job),
+        ),
+      );
       return;
     }
 
+    // All others go to detail screen (which we will adapt to be read-only for completed)
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -217,7 +231,6 @@ class _JobCardState extends ConsumerState<_JobCard> {
   Widget build(BuildContext context) {
     final service = widget.job['service_category'] ?? 'Service';
     final customer = widget.job['customer_name'] ?? 'Customer';
-    final location = widget.job['location_name'] ?? 'Local Area';
     final status = widget.job['status']?.toString().toUpperCase() ?? 'PENDING';
     final payment = widget.job['estimated_payment'] ?? '₹500';
 
@@ -265,8 +278,6 @@ class _JobCardState extends ConsumerState<_JobCard> {
               ),
               const SizedBox(height: 12),
               _buildInfoRow(Icons.person_outline_rounded, customer),
-              const SizedBox(height: 6),
-              _buildInfoRow(Icons.location_on_outlined, location),
 
               if (status == 'ACCEPTED' || status == 'PROPOSAL_ACCEPTED') ...[
                 const SizedBox(height: 20),

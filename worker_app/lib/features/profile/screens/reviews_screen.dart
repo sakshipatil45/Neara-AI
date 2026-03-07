@@ -7,7 +7,7 @@ class ReviewsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workerAsync = ref.watch(currentWorkerProvider);
+    final reviewsAsync = ref.watch(workerReviewsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -23,30 +23,31 @@ class ReviewsScreen extends ConsumerWidget {
         elevation: 0,
         leading: const BackButton(color: Color(0xFF1E293B)),
       ),
-      body: workerAsync.when(
-        data: (worker) {
-          // Mock data for demonstration if no reviews table joined yet
-          final reviews = [
-            {
-              'name': 'Rahul S.',
-              'rating': 5.0,
-              'comment': 'Excellent work! Very professional and on time.',
-              'date': '2 days ago',
-            },
-            {
-              'name': 'Suresh K.',
-              'rating': 4.5,
-              'comment':
-                  'Great fix for the plumbing issue. Highly recommended.',
-              'date': '1 week ago',
-            },
-            {
-              'name': 'Anita P.',
-              'rating': 5.0,
-              'comment': 'Came in 20 mins and fixed the AC immediately.',
-              'date': '2 weeks ago',
-            },
-          ];
+      body: reviewsAsync.when(
+        data: (reviews) {
+          if (reviews.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.rate_review_outlined,
+                    size: 64,
+                    color: const Color(0xFFCBD5E1),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No reviews yet',
+                    style: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(20),
@@ -75,14 +76,14 @@ class ReviewsScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          review['name'] as String,
+                          review['customer_name'] as String? ?? 'Anonymous',
                           style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
                           ),
                         ),
                         Text(
-                          review['date'] as String,
+                          _formatDate(review['created_at']),
                           style: const TextStyle(
                             color: Color(0xFF94A3B8),
                             fontSize: 12,
@@ -96,7 +97,11 @@ class ReviewsScreen extends ConsumerWidget {
                         5,
                         (i) => Icon(
                           Icons.star_rounded,
-                          color: i < (review['rating'] as double).floor()
+                          color:
+                              i <
+                                  ((review['rating'] as num?)?.toDouble() ??
+                                          5.0)
+                                      .floor()
                               ? Colors.orange
                               : Colors.grey.shade300,
                           size: 18,
@@ -105,7 +110,7 @@ class ReviewsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      review['comment'] as String,
+                      review['comment'] as String? ?? 'No comment provided.',
                       style: const TextStyle(
                         color: Color(0xFF475569),
                         fontSize: 14,
@@ -122,5 +127,24 @@ class ReviewsScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Error loading reviews: $e')),
       ),
     );
+  }
+
+  String _formatDate(dynamic dateString) {
+    if (dateString == null) return 'Recently';
+    try {
+      final date = DateTime.parse(dateString.toString());
+      final diff = DateTime.now().difference(date);
+      if (diff.inDays > 7) {
+        return '${date.day}/${date.month}/${date.year}';
+      } else if (diff.inDays > 0) {
+        return '${diff.inDays} days ago';
+      } else if (diff.inHours > 0) {
+        return '${diff.inHours} hours ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (_) {
+      return 'Recently';
+    }
   }
 }

@@ -127,6 +127,28 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
         widget.jobData['issue_description'] ??
         'No description provided.';
 
+    final status =
+        widget.jobData['status']?.toString().toUpperCase() ?? 'PENDING';
+    final isActiveOrPending =
+        status == 'PENDING' ||
+        status == 'ACCEPTED' ||
+        status == 'CREATED' ||
+        status == 'PROPOSAL_ACCEPTED';
+
+    // Format timestamp
+    String formattedTime = 'N/A';
+    final createdAt = widget.jobData['created_at'];
+    if (createdAt != null) {
+      final parsed = DateTime.tryParse(createdAt.toString());
+      if (parsed != null) {
+        final hours = parsed.hour % 12 == 0 ? 12 : parsed.hour % 12;
+        final period = parsed.hour >= 12 ? 'PM' : 'AM';
+        final mins = parsed.minute.toString().padLeft(2, '0');
+        formattedTime =
+            '${parsed.day}/${parsed.month}/${parsed.year}, $hours:$mins $period';
+      }
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -220,6 +242,14 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildDetailRow(
+                    Icons.access_time_rounded,
+                    'Requested On',
+                    formattedTime,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDetailRow(Icons.info_outline_rounded, 'Status', status),
+                  const SizedBox(height: 16),
+                  _buildDetailRow(
                     Icons.article_rounded,
                     'Description',
                     description,
@@ -228,64 +258,66 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
               ),
             ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
-            const SizedBox(height: 32),
+            if (isActiveOrPending) ...[
+              const SizedBox(height: 32),
 
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.map_rounded,
-                    label: 'Navigate',
-                    onTap: _launchMap,
-                    color: AppTheme.primaryBlue,
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActionButton(
+                      icon: Icons.map_rounded,
+                      label: 'Navigate',
+                      onTap: _launchMap,
+                      color: AppTheme.primaryBlue,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.call_rounded,
-                    label: 'Call',
-                    onTap: _callCustomer,
-                    color: const Color(0xFF10B981),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildActionButton(
+                      icon: Icons.call_rounded,
+                      label: 'Call',
+                      onTap: _callCustomer,
+                      color: const Color(0xFF10B981),
+                    ),
                   ),
-                ),
-              ],
-            ).animate().fadeIn(delay: 200.ms),
+                ],
+              ).animate().fadeIn(delay: 200.ms),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _startJob,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E293B),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _startJob,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E293B),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
                   ),
-                  elevation: 0,
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Start Job',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      )
-                    : const Text(
-                        'Start Job',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-              ),
-            ).animate().fadeIn(delay: 300.ms),
+                ),
+              ).animate().fadeIn(delay: 300.ms),
+            ],
           ],
         ),
       ),

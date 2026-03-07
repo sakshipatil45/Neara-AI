@@ -16,9 +16,8 @@ class _RequestCardState extends State<RequestCard> {
 
   @override
   Widget build(BuildContext context) {
-    final serviceCategory =
-        widget.requestData['service_category'] ?? 'Service Request';
-    final location = widget.requestData['location_name'] ?? 'Local Area';
+    final customerName =
+        widget.requestData['customer_name'] ?? 'Customer Request';
     final payment = widget.requestData['estimated_payment'] ?? '₹450';
 
     return GestureDetector(
@@ -79,7 +78,7 @@ class _RequestCardState extends State<RequestCard> {
                       children: [
                         Expanded(
                           child: Text(
-                            serviceCategory,
+                            customerName,
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
@@ -101,37 +100,6 @@ class _RequestCardState extends State<RequestCard> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on_rounded,
-                          size: 12,
-                          color: Color(0xFF94A3B8),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            location,
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          '1.2 km',
-                          style: TextStyle(
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),

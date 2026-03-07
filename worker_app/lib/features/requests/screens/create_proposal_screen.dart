@@ -16,6 +16,7 @@ class CreateProposalScreen extends ConsumerStatefulWidget {
 
 class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _inspectionFeeController = TextEditingController();
   final _priceController = TextEditingController();
   final _notesController = TextEditingController();
 
@@ -35,14 +36,18 @@ class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
 
   @override
   void dispose() {
+    _inspectionFeeController.dispose();
     _priceController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
+  double get _inspectionFee =>
+      double.tryParse(_inspectionFeeController.text) ?? 0.0;
   double get _servicePrice => double.tryParse(_priceController.text) ?? 0.0;
-  double get _advanceAmount => (_servicePrice * _advancePercentage) / 100;
-  double get _remainingAmount => _servicePrice - _advanceAmount;
+  double get _totalServicePrice => _inspectionFee + _servicePrice;
+  double get _advanceAmount => (_totalServicePrice * _advancePercentage) / 100;
+  double get _remainingAmount => _totalServicePrice - _advanceAmount;
 
   Future<void> _submitProposal() async {
     if (!_formKey.currentState!.validate()) return;
@@ -60,7 +65,7 @@ class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
           .sendProposal(
             requestId: requestId,
             workerId: worker.id,
-            serviceCost: _servicePrice,
+            serviceCost: _totalServicePrice,
             advancePercent: _advancePercentage,
             arrivalTime: _selectedArrivalTime,
             notes: _notesController.text.trim(),
@@ -96,6 +101,7 @@ class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
   Widget build(BuildContext context) {
     final serviceType = widget.requestData['service_category'] ?? 'Service';
     final location = widget.requestData['location_name'] ?? 'Local Area';
+    final customerName = widget.requestData['customer_name'] ?? 'Customer';
     final description =
         widget.requestData['issue_summary'] ??
         widget.requestData['issue_description'] ??
@@ -143,11 +149,25 @@ class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Request Summary Card
-              _buildSummaryCard(serviceType, location, description),
+              _buildSummaryCard(
+                serviceType,
+                location,
+                description,
+                customerName,
+              ),
 
               const SizedBox(height: 32),
 
               // Form Fields
+              _buildSectionTitle(
+                'Inspection Fee (Optional)',
+                Icons.search_rounded,
+              ),
+              const SizedBox(height: 12),
+              _buildInspectionFeeInput(),
+
+              const SizedBox(height: 24),
+
               _buildSectionTitle('Your Service Price', Icons.payments_rounded),
               const SizedBox(height: 12),
               _buildPriceInput(),
@@ -173,7 +193,7 @@ class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
               const SizedBox(height: 16),
 
               // Auto-calculation Card
-              if (_servicePrice > 0)
+              if (_totalServicePrice > 0)
                 _buildCalculationCard().animate().fadeIn().slideY(
                   begin: 0.1,
                   end: 0,
@@ -237,7 +257,12 @@ class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String service, String loc, String desc) {
+  Widget _buildSummaryCard(
+    String service,
+    String loc,
+    String desc,
+    String customerName,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -283,6 +308,8 @@ class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          _buildSummaryItem(Icons.person_rounded, customerName),
+          const SizedBox(height: 8),
           _buildSummaryItem(Icons.location_on_rounded, loc),
           const SizedBox(height: 8),
           _buildSummaryItem(Icons.article_rounded, desc, maxLines: 2),
@@ -358,6 +385,41 @@ class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
         if (val == null || val.isEmpty) return 'Please enter a price';
         if (double.tryParse(val) == null || double.parse(val) <= 0)
           return 'Enter a valid amount';
+        return null;
+      },
+    );
+  }
+
+  Widget _buildInspectionFeeInput() {
+    return TextFormField(
+      controller: _inspectionFeeController,
+      keyboardType: TextInputType.number,
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        hintText: 'e.g. 150',
+        prefixIcon: const Icon(Icons.currency_rupee_rounded, size: 20),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.all(20),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFF1F5F9), width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: AppTheme.primaryBlue, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+        ),
+      ),
+      validator: (val) {
+        if (val != null && val.isNotEmpty) {
+          if (double.tryParse(val) == null || double.parse(val) < 0) {
+            return 'Enter a valid amount';
+          }
+        }
         return null;
       },
     );
@@ -453,6 +515,24 @@ class _CreateProposalScreenState extends ConsumerState<CreateProposalScreen> {
       ),
       child: Column(
         children: [
+          _buildCalcRow(
+            'Inspection Fee',
+            '₹${_inspectionFee.toStringAsFixed(0)}',
+          ),
+          const SizedBox(height: 8),
+          _buildCalcRow(
+            'Service Price',
+            '₹${_servicePrice.toStringAsFixed(0)}',
+          ),
+          const SizedBox(height: 12),
+          const Divider(color: Color(0xFFE2E8F0)),
+          const SizedBox(height: 12),
+          _buildCalcRow(
+            'Total Fee',
+            '₹${_totalServicePrice.toStringAsFixed(0)}',
+            isHighlight: true,
+          ),
+          const SizedBox(height: 16),
           _buildCalcRow(
             'Advance to be paid now',
             '₹${_advanceAmount.toStringAsFixed(0)}',

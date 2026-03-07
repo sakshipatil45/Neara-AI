@@ -10,6 +10,8 @@ import '../../dashboard/widgets/request_card.dart';
 import '../../dashboard/widgets/active_job_card.dart';
 import '../../requests/screens/incoming_requests_screen.dart';
 import '../../proposals/screens/proposals_screen.dart';
+import '../../earnings/screens/earnings_screen.dart';
+import '../../profile/screens/profile_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -21,55 +23,7 @@ class DashboardScreen extends ConsumerWidget {
     final activeJobsAsync = ref.watch(activeJobsProvider);
     final userAsync = ref.watch(currentUserProvider);
 
-    // Show an in-app banner whenever a new request arrives via realtime.
-    ref.listen<Map<String, dynamic>?>(newRequestAlertProvider, (_, next) {
-      if (next == null) return;
-      final category = next['service_category'] ?? 'Service Request';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(
-                Icons.notifications_active_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'New request: $category',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: AppTheme.primaryBlue,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'View',
-            textColor: Colors.white,
-            onPressed: () {
-              ref.read(newRequestAlertProvider.notifier).dismiss();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const IncomingRequestsScreen(),
-                ),
-              );
-            },
-          ),
-        ),
-      );
-      ref.read(newRequestAlertProvider.notifier).dismiss();
-    });
+    // Notifications are handled globally by NotificationService via MainNavigationScreen
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -248,6 +202,31 @@ class DashboardScreen extends ConsumerWidget {
                       return Row(
                         children: [
                           IconButton(
+                            onPressed: () {
+                              // Navigate to notifications or requests
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const IncomingRequestsScreen(),
+                                ),
+                              );
+                            },
+                            icon: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.notifications_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
                             onPressed: () async {
                               await ref
                                   .read(authServiceProvider)
@@ -329,7 +308,14 @@ class DashboardScreen extends ConsumerWidget {
                             icon: Icons.account_balance_wallet_rounded,
                             label: 'Earnings',
                             color: const Color(0xFF10B981),
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const EarningsScreen(),
+                                ),
+                              );
+                            },
                           ),
                           _QuickActionButton(
                             icon: Icons.description_rounded,
@@ -348,13 +334,27 @@ class DashboardScreen extends ConsumerWidget {
                             icon: Icons.person_rounded,
                             label: 'Profile',
                             color: const Color(0xFFF59E0B),
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ProfileScreen(),
+                                ),
+                              );
+                            },
                           ),
                           _QuickActionButton(
                             icon: Icons.help_outline_rounded,
                             label: 'Support',
                             color: const Color(0xFF3B82F6),
-                            onTap: () {},
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Support feature coming soon!'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       )
