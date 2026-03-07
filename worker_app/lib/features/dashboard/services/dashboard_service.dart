@@ -26,11 +26,14 @@ class DashboardService {
       print('DEBUG: [createJob] Creating job for request $requestId');
 
       // Check if job already exists
-      final existing = await _supabase
+      final List<dynamic> existingResponse = await _supabase
           .from('jobs')
           .select()
           .eq('request_id', requestId)
-          .maybeSingle();
+          .limit(1);
+      final existing = existingResponse.isNotEmpty
+          ? existingResponse.first
+          : null;
 
       if (existing != null) {
         print('DEBUG: [createJob] Job already exists for request $requestId');
@@ -70,11 +73,14 @@ class DashboardService {
       final upperStatus = status.toUpperCase();
       if (upperStatus == 'ADVANCE_PAYMENT_DONE' ||
           upperStatus == 'SERVICE_STARTED') {
-        final payment = await _supabase
+        final List<dynamic> paymentResponse = await _supabase
             .from('payments')
             .select('advance_amount, service_requests(worker_id)')
             .eq('request_id', requestId)
-            .maybeSingle();
+            .limit(1);
+        final payment = paymentResponse.isNotEmpty
+            ? paymentResponse.first
+            : null;
 
         if (payment != null) {
           final amt = (payment['advance_amount'] as num?)?.toDouble() ?? 0.0;
@@ -604,13 +610,13 @@ class DashboardService {
   // Check if an advance payment exists for a request
   Future<bool> hasAdvancePayment(dynamic requestId) async {
     try {
-      final response = await _supabase
+      final List<dynamic> response = await _supabase
           .from('payments')
           .select()
           .eq('request_id', requestId)
           .not('advance_amount', 'is', null)
-          .maybeSingle();
-      return response != null;
+          .limit(1);
+      return response.isNotEmpty;
     } catch (e) {
       print('DEBUG: [hasAdvancePayment] ERROR: $e');
       return false;
@@ -620,13 +626,13 @@ class DashboardService {
   // Fetch accepted proposal for a request
   Future<Map<String, dynamic>?> getAcceptedProposal(dynamic requestId) async {
     try {
-      final response = await _supabase
+      final List<dynamic> response = await _supabase
           .from('proposals')
           .select()
           .eq('request_id', requestId)
           .or('status.eq.ACCEPTED,status.eq.accepted')
-          .maybeSingle();
-      return response;
+          .limit(1);
+      return response.isNotEmpty ? response.first : null;
     } catch (e) {
       print('DEBUG: Error fetching accepted proposal: $e');
       return null;

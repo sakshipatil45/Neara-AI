@@ -327,7 +327,7 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
   }
 
   Widget _buildPhotoSection() {
-    final normalizedStatus = _currentStatus.toUpperCase();
+    final normalizedStatus = _currentStatus.toUpperCase().replaceAll(' ', '_');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -343,9 +343,8 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
               ),
             ),
             if (normalizedStatus != 'PENDING' &&
-                normalizedStatus != 'SERVICE_COMPLETED' &&
-                normalizedStatus != 'COMPLETED' &&
                 normalizedStatus != 'SERVICE_CLOSED' &&
+                normalizedStatus != 'COMPLETED' &&
                 normalizedStatus != 'RATED' &&
                 _beforePhotoUrl == null)
               const Text(
@@ -357,9 +356,8 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
                 ),
               ),
             if (normalizedStatus != 'PENDING' &&
-                normalizedStatus != 'SERVICE_COMPLETED' &&
-                normalizedStatus != 'COMPLETED' &&
                 normalizedStatus != 'SERVICE_CLOSED' &&
+                normalizedStatus != 'COMPLETED' &&
                 normalizedStatus != 'RATED' &&
                 _afterPhotoUrl == null)
               const Text(
@@ -379,18 +377,16 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
               'Before',
               _beforePhotoUrl,
               (normalizedStatus != 'PENDING' &&
-                      normalizedStatus != 'SERVICE_COMPLETED' &&
-                      normalizedStatus != 'COMPLETED' &&
                       normalizedStatus != 'SERVICE_CLOSED' &&
+                      normalizedStatus != 'COMPLETED' &&
                       normalizedStatus != 'RATED')
                   ? () => _pick(true)
                   : null,
               isEnabled:
                   _beforePhotoUrl != null ||
                   (normalizedStatus != 'PENDING' &&
-                      normalizedStatus != 'SERVICE_COMPLETED' &&
-                      normalizedStatus != 'COMPLETED' &&
                       normalizedStatus != 'SERVICE_CLOSED' &&
+                      normalizedStatus != 'COMPLETED' &&
                       normalizedStatus != 'RATED'),
             ),
             const SizedBox(width: 16),
@@ -398,18 +394,16 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
               'After',
               _afterPhotoUrl,
               (normalizedStatus != 'PENDING' &&
-                      normalizedStatus != 'SERVICE_COMPLETED' &&
-                      normalizedStatus != 'COMPLETED' &&
                       normalizedStatus != 'SERVICE_CLOSED' &&
+                      normalizedStatus != 'COMPLETED' &&
                       normalizedStatus != 'RATED')
                   ? () => _pick(false)
                   : null,
               isEnabled:
                   _afterPhotoUrl != null ||
                   (normalizedStatus != 'PENDING' &&
-                      normalizedStatus != 'SERVICE_COMPLETED' &&
-                      normalizedStatus != 'COMPLETED' &&
                       normalizedStatus != 'SERVICE_CLOSED' &&
+                      normalizedStatus != 'COMPLETED' &&
                       normalizedStatus != 'RATED'),
             ),
           ],
@@ -646,20 +640,21 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
   }
 
   Widget _buildActionButtons() {
-    final normalizedStatus = _currentStatus.toUpperCase();
+    final normalizedStatus = _currentStatus.toUpperCase().replaceAll(' ', '_');
     String label = '';
     String next = '';
     Color c = AppTheme.primaryBlue;
     IconData icon = Icons.check_circle_rounded;
 
-    if (normalizedStatus == 'WORKER_COMING' ||
-        normalizedStatus == 'ADVANCE_PAID' ||
-        normalizedStatus == 'ACCEPTED' ||
-        normalizedStatus == 'PROPOSAL_ACCEPTED') {
+    if (normalizedStatus == 'ACCEPTED' ||
+        normalizedStatus == 'PROPOSAL_ACCEPTED' ||
+        normalizedStatus == 'WORKER_COMING' ||
+        normalizedStatus == 'COMMING') {
       label = 'Confirm Arrival';
       next = 'WORKER_ARRIVED';
       icon = Icons.location_on_rounded;
     } else if (normalizedStatus == 'WORKER_ARRIVED' ||
+        normalizedStatus == 'ADVANCE_PAID' ||
         normalizedStatus == 'ADVANCE_PAYMENT_DONE') {
       label = 'Start Service';
       next = 'SERVICE_STARTED';
@@ -671,8 +666,33 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
       c = const Color(0xFF10B981);
       icon = Icons.task_alt_rounded;
     } else if (normalizedStatus == 'SERVICE_COMPLETED' ||
+        normalizedStatus == 'FINAL_PAYMENT_PENDING') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.payment_rounded, color: Colors.orange),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Service Finished. Waiting for final payment.',
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (normalizedStatus == 'SERVICE_CLOSED' ||
         normalizedStatus == 'COMPLETED' ||
-        normalizedStatus == 'SERVICE_CLOSED' ||
         normalizedStatus == 'RATED') {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
