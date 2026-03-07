@@ -41,7 +41,7 @@ class DashboardService {
         'request_id': requestId,
         'worker_id': workerId,
         'customer_id': customerId,
-        'status': 'PENDING',
+        'status': 'ACCEPTED',
       });
 
       print('DEBUG: [createJob] Job created successfully');
@@ -67,8 +67,9 @@ class DashboardService {
           .eq('id', requestId);
 
       // Proactive earning recording for Advance Payment
-      if (status.toUpperCase() == 'ADVANCE_PAYMENT_DONE' ||
-          status == 'Advance_payment_done') {
+      final upperStatus = status.toUpperCase();
+      if (upperStatus == 'ADVANCE_PAYMENT_DONE' ||
+          upperStatus == 'SERVICE_STARTED') {
         final payment = await _supabase
             .from('payments')
             .select('advance_amount, service_requests(worker_id)')
@@ -570,10 +571,7 @@ class DashboardService {
   // Update status to 'SERVICE_STARTED'
   Future<void> startJob(dynamic requestId) async {
     try {
-      await _supabase
-          .from('service_requests')
-          .update({'status': 'SERVICE_STARTED'})
-          .eq('id', requestId);
+      await updateJobStatus(requestId, 'SERVICE_STARTED');
     } catch (e) {
       throw Exception('Failed to start job: $e');
     }

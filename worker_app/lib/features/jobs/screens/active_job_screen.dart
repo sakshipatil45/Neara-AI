@@ -119,6 +119,9 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
       await ref.read(dashboardServiceProvider).startJob(requestId);
 
       if (mounted) {
+        // Update local object status to pass to next screen
+        widget.jobData['status'] = 'SERVICE_STARTED';
+
         ref.invalidate(activeJobsProvider);
         Navigator.pushReplacement(
           context,
