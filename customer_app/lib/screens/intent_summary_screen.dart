@@ -119,6 +119,8 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
         return 'Maid';
       case ServiceCategory.gasService:
         return 'Gas Service';
+      case ServiceCategory.roadsideAssistance:
+        return 'Mechanic';
       default:
         return 'All';
     }
@@ -128,7 +130,6 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
   Widget build(BuildContext context) {
     final urgColor = _urgencyColor();
     final intent = widget.intent;
-    final confidencePct = (intent.confidence * 100).round();
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundSecondary,
@@ -311,31 +312,37 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                           ),
                                         ),
                                         const SizedBox(width: 14),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Service Needed',
-                                              style: const TextStyle(
-                                                fontFamily: 'Inter',
-                                                color: AppTheme.textTertiary,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Service Needed',
+                                                style: const TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  color: AppTheme.textTertiary,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              _categoryLabel(),
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .headlineMedium
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppTheme.textPrimary,
-                                                  ),
-                                            ),
-                                          ],
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                _categoryLabel(),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .headlineMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color:
+                                                          AppTheme.textPrimary,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -387,8 +394,12 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                       ),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 5,
+                                          horizontal: 12,
+                                          vertical: 11,
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minHeight: 44,
+                                          minWidth: 44,
                                         ),
                                         decoration: BoxDecoration(
                                           border: Border.all(
@@ -400,6 +411,7 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                           ),
                                         ),
                                         child: Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
                                               _isEditing
@@ -566,44 +578,6 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                           ),
                         ],
 
-                        // ── Confidence Bar ──
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'AI Confidence',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                color: AppTheme.textTertiary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              '$confidencePct%',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                color: AppTheme.textSecondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: intent.confidence,
-                            minHeight: 6,
-                            backgroundColor: AppTheme.borderDefault,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              AppTheme.primaryBlue,
-                            ),
-                          ),
-                        ),
-
                         const SizedBox(height: 32),
                       ],
                     ),
@@ -651,7 +625,7 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                       const SizedBox(width: 12),
                       // Proceed – Primary CTA
                       Expanded(
-                        flex: 2,
+                        flex: 1,
                         child: SizedBox(
                           height: 48,
                           child: ElevatedButton.icon(
@@ -662,8 +636,7 @@ class _IntentSummaryScreenState extends ConsumerState<IntentSummaryScreen>
                                   builder: (_) => WorkerListingScreen(
                                     initialCategory: _workerCategory(),
                                     prefillSummary: _editCtrl.text,
-                                    prefillUrgency:
-                                        widget.intent.urgency.name,
+                                    prefillUrgency: widget.intent.urgency.name,
                                   ),
                                 ),
                               );

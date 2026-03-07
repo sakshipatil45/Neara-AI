@@ -17,10 +17,31 @@ class ActiveJobScreen extends ConsumerStatefulWidget {
 
 class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
   bool _isLoading = false;
+  Map<String, dynamic>? _proposalData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProposalData();
+  }
+
+  Future<void> _fetchProposalData() async {
+    final requestId = widget.jobData['id'];
+    if (requestId == null) return;
+
+    final proposal = await ref
+        .read(dashboardServiceProvider)
+        .getAcceptedProposal(requestId);
+    if (mounted && proposal != null) {
+      setState(() {
+        _proposalData = proposal;
+      });
+    }
+  }
 
   Future<void> _launchMap() async {
-    final lat = widget.jobData['latitude'];
-    final lng = widget.jobData['longitude'];
+    final lat = widget.jobData['customer_lat'] ?? widget.jobData['latitude'];
+    final lng = widget.jobData['customer_lng'] ?? widget.jobData['longitude'];
 
     if (lat == null || lng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -29,16 +50,42 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
       return;
     }
 
-    final url = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
-    );
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Could not launch maps')));
+    // Try multiple schemes for better compatibility
+    final urls = [
+      Uri.parse('google.navigation:q=$lat,$lng'), // Android native
+      Uri.parse('geo:$lat,$lng?q=$lat,$lng'), // Android fallback
+      Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+      ), // Universal
+    ];
+
+    bool launched = false;
+    for (final url in urls) {
+      try {
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+          launched = true;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (!launched) {
+      // Final attempt without canLaunchUrl check (sometimes it fails incorrectly)
+      try {
+        await launchUrl(
+          Uri.parse(
+            'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+          ),
+          mode: LaunchMode.externalApplication,
+        );
+        launched = true;
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Could not launch maps: $e')));
+        }
       }
     }
   }
@@ -72,6 +119,9 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
       await ref.read(dashboardServiceProvider).startJob(requestId);
 
       if (mounted) {
+        // Update local object status to pass to next screen
+        widget.jobData['status'] = 'SERVICE_STARTED';
+
         ref.invalidate(activeJobsProvider);
         Navigator.pushReplacement(
           context,
@@ -91,16 +141,40 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
     }
   }
 
-  @override
   Widget build(BuildContext context) {
-    final serviceType = widget.jobData['service_category'] ?? 'Service Job';
     final customerName = widget.jobData['customer_name'] ?? 'Customer';
     final address = widget.jobData['location_name'] ?? 'Local Address';
-    final payment = widget.jobData['estimated_payment'] ?? '₹0';
+    final paymentTotal = _proposalData?['service_cost'] != null
+        ? '₹${((_proposalData?['inspection_fee'] ?? 0) + (_proposalData?['service_cost'] ?? 0)).toStringAsFixed(0)}'
+        : widget.jobData['estimated_payment'] ?? '₹0';
+
     final description =
+        _proposalData?['notes'] ??
         widget.jobData['issue_summary'] ??
         widget.jobData['issue_description'] ??
         'No description provided.';
+
+    final status =
+        widget.jobData['status']?.toString().toUpperCase() ?? 'PENDING';
+    final isActiveOrPending =
+        status == 'PENDING' ||
+        status == 'ACCEPTED' ||
+        status == 'CREATED' ||
+        status == 'PROPOSAL_ACCEPTED';
+
+    // Format timestamp
+    String formattedTime = 'N/A';
+    final createdAt = widget.jobData['created_at'];
+    if (createdAt != null) {
+      final parsed = DateTime.tryParse(createdAt.toString());
+      if (parsed != null) {
+        final hours = parsed.hour % 12 == 0 ? 12 : parsed.hour % 12;
+        final period = parsed.hour >= 12 ? 'PM' : 'AM';
+        final mins = parsed.minute.toString().padLeft(2, '0');
+        formattedTime =
+            '${parsed.day}/${parsed.month}/${parsed.year}, $hours:$mins $period';
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -151,7 +225,7 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          serviceType,
+                          customerName,
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
@@ -169,7 +243,7 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          payment,
+                          paymentTotal,
                           style: const TextStyle(
                             color: Color(0xFF10B981),
                             fontWeight: FontWeight.w800,
@@ -195,6 +269,14 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildDetailRow(
+                    Icons.access_time_rounded,
+                    'Requested On',
+                    formattedTime,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDetailRow(Icons.info_outline_rounded, 'Status', status),
+                  const SizedBox(height: 16),
+                  _buildDetailRow(
                     Icons.article_rounded,
                     'Description',
                     description,
@@ -203,64 +285,66 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
               ),
             ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
-            const SizedBox(height: 32),
+            if (isActiveOrPending) ...[
+              const SizedBox(height: 32),
 
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.map_rounded,
-                    label: 'Navigate',
-                    onTap: _launchMap,
-                    color: AppTheme.primaryBlue,
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActionButton(
+                      icon: Icons.map_rounded,
+                      label: 'Navigate',
+                      onTap: _launchMap,
+                      color: AppTheme.primaryBlue,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.call_rounded,
-                    label: 'Call',
-                    onTap: _callCustomer,
-                    color: const Color(0xFF10B981),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildActionButton(
+                      icon: Icons.call_rounded,
+                      label: 'Call',
+                      onTap: _callCustomer,
+                      color: const Color(0xFF10B981),
+                    ),
                   ),
-                ),
-              ],
-            ).animate().fadeIn(delay: 200.ms),
+                ],
+              ).animate().fadeIn(delay: 200.ms),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _startJob,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E293B),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _startJob,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E293B),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
                   ),
-                  elevation: 0,
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Start Job',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      )
-                    : const Text(
-                        'Start Job',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-              ),
-            ).animate().fadeIn(delay: 300.ms),
+                ),
+              ).animate().fadeIn(delay: 300.ms),
+            ],
           ],
         ),
       ),

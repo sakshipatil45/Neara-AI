@@ -57,19 +57,27 @@ final intentViewModelProvider = NotifierProvider<IntentViewModel, IntentState>(
 
 // ----- VIEW MODEL -----
 class IntentViewModel extends Notifier<IntentState> {
-  String _lastRecognizedWords = '';
+  Timer? _maxDurationTimer;
 
-  /// Timer that fires if the user hasn't spoken anything after [_noSpeechTimeout].
-  Timer? _noSpeechTimer;
-
-  /// Timer that fires if speech has started but there's been [_silenceTimeout] of silence.
+  /// Silence detection via periodic amplitude polling.
+  Timer? _pollTimer;
   Timer? _silenceTimer;
 
-  /// How long to wait for ANY speech before auto-cancelling (user tapped but didn't speak).
-  static const Duration _noSpeechTimeout = Duration(seconds: 5);
+  /// Auto-stops recording if the user never speaks within this window.
+  Timer? _noSpeechTimer;
+  bool _hasSpeechStarted = false;
 
-  /// How long of silence (after some speech) before auto-submitting.
-  static const Duration _silenceTimeout = Duration(seconds: 2);
+  /// dBFS above this = speech detected (0 = max, -160 = total silence).
+  static const double _silenceThresholdDb = -40.0;
+
+  /// How long silence must persist after speech before auto-stopping.
+  static const Duration _silenceDelay = Duration(milliseconds: 1500);
+
+  /// Maximum recording duration (hard cap).
+  static const Duration _maxRecordDuration = Duration(seconds: 60);
+
+  /// If no speech is detected within this time, auto-cancel recording.
+  static const Duration _noSpeechTimeout = Duration(seconds: 7);
 
   @override
   IntentState build() {
@@ -78,10 +86,14 @@ class IntentViewModel extends Notifier<IntentState> {
   }
 
   void _cancelTimers() {
-    _noSpeechTimer?.cancel();
-    _noSpeechTimer = null;
+    _maxDurationTimer?.cancel();
+    _maxDurationTimer = null;
+    _pollTimer?.cancel();
+    _pollTimer = null;
     _silenceTimer?.cancel();
     _silenceTimer = null;
+    _noSpeechTimer?.cancel();
+    _noSpeechTimer = null;
   }
 
   Future<void> startRecording() async {
@@ -91,57 +103,75 @@ class IntentViewModel extends Notifier<IntentState> {
       return;
     }
 
-    _lastRecognizedWords = '';
     state = IntentListening('');
     _cancelTimers();
 
-    // If the user taps but says nothing within 5s → cancel gracefully
-    _noSpeechTimer = Timer(_noSpeechTimeout, () {
-      if (state is IntentListening && _lastRecognizedWords.trim().isEmpty) {
-        _cancelRecording();
-      }
+    // Auto-stop after the max duration so the user is never stuck.
+    _maxDurationTimer = Timer(_maxRecordDuration, () {
+      if (state is IntentListening) stopRecordingAndAnalyze();
     });
 
     try {
       final sttService = ref.read(sttServiceProvider);
-      final localeOverride = ref.read(selectedLocaleProvider);
-      await sttService.startListening(
-        localeOverride: localeOverride,
-        onResult: (words) {
-          _lastRecognizedWords = words;
-          if (state is IntentListening) {
-            state = IntentListening(words);
+      await sttService.startRecording();
 
-            if (words.trim().isNotEmpty) {
-              // Speech detected → cancel the no-speech watchdog
-              _noSpeechTimer?.cancel();
-              _noSpeechTimer = null;
+      // ── Silence / no-speech detection via polling ────────────────────
+      // Poll amplitude every 150 ms.
+      // • Before first speech: cancel after _noSpeechTimeout (user never spoke).
+      // • After speech starts: silence countdown triggers auto-stop.
+      _hasSpeechStarted = false;
 
-              // Reset silence timer on every new word
-              _silenceTimer?.cancel();
-              _silenceTimer = Timer(_silenceTimeout, () {
-                if (state is IntentListening) {
-                  stopRecordingAndAnalyze();
-                }
-              });
-            }
-          }
-        },
-      );
+      // If the user never speaks within the timeout, cancel and show hint.
+      _noSpeechTimer = Timer(_noSpeechTimeout, () {
+        if (state is IntentListening && !_hasSpeechStarted) {
+          _cancelAndShowEmpty();
+        }
+      });
+
+      _pollTimer = Timer.periodic(const Duration(milliseconds: 150), (_) async {
+        if (state is! IntentListening) {
+          _pollTimer?.cancel();
+          return;
+        }
+        final db = await sttService.getAmplitudeDb();
+        if (db > _silenceThresholdDb) {
+          // Speech detected — kill the no-speech watchdog.
+          _hasSpeechStarted = true;
+          _noSpeechTimer?.cancel();
+          _noSpeechTimer = null;
+          _silenceTimer?.cancel();
+          _silenceTimer = null;
+        } else if (_hasSpeechStarted) {
+          _silenceTimer ??= Timer(_silenceDelay, () {
+            if (state is IntentListening) stopRecordingAndAnalyze();
+          });
+        }
+      });
     } catch (e) {
       _cancelTimers();
       state = IntentError(e.toString());
-      ref.read(sttServiceProvider).stopListening();
     }
   }
 
-  /// Called when the user has tapped without saying anything (no-speech timeout).
-  Future<void> _cancelRecording() async {
+  /// Stops recording immediately when no speech was detected.
+  Future<void> _cancelAndShowEmpty() async {
     _cancelTimers();
     final sttService = ref.read(sttServiceProvider);
-    await sttService.stopListening();
+    await sttService.cancelRecording();
     state = IntentEmpty();
-    // Auto-reset back to idle after a brief moment
+    Future.delayed(const Duration(seconds: 2), () {
+      if (state is IntentEmpty) state = IntentIdle();
+    });
+  }
+
+  /// Cancels an in-progress recording and returns to idle.
+  /// Used when the user navigates away mid-recording.
+  Future<void> cancelRecording() async {
+    if (state is! IntentListening) return;
+    _cancelTimers();
+    final sttService = ref.read(sttServiceProvider);
+    await sttService.cancelRecording();
+    state = IntentEmpty();
     Future.delayed(const Duration(seconds: 2), () {
       if (state is IntentEmpty) state = IntentIdle();
     });
@@ -151,12 +181,11 @@ class IntentViewModel extends Notifier<IntentState> {
     if (state is! IntentListening) return;
 
     _cancelTimers();
-    final sttService = ref.read(sttServiceProvider);
-    await sttService.stopListening();
 
-    final trimmed = _lastRecognizedWords.trim();
-    if (trimmed.isEmpty) {
-      // User tapped stop without saying anything
+    // If no speech was detected at all, skip the API call entirely.
+    if (!_hasSpeechStarted) {
+      final sttService = ref.read(sttServiceProvider);
+      await sttService.cancelRecording();
       state = IntentEmpty();
       Future.delayed(const Duration(seconds: 2), () {
         if (state is IntentEmpty) state = IntentIdle();
@@ -167,8 +196,19 @@ class IntentViewModel extends Notifier<IntentState> {
     state = IntentProcessing();
 
     try {
+      final sttService = ref.read(sttServiceProvider);
+      final transcript = await sttService.stopAndTranscribe();
+
+      if (transcript.trim().isEmpty) {
+        state = IntentEmpty();
+        Future.delayed(const Duration(seconds: 2), () {
+          if (state is IntentEmpty) state = IntentIdle();
+        });
+        return;
+      }
+
       final aiService = ref.read(aiIntentServiceProvider);
-      final intent = await aiService.analyzeIntent(trimmed);
+      final intent = await aiService.analyzeIntent(transcript.trim());
       state = IntentSuccess(intent);
     } catch (e) {
       state = IntentError('Failed to analyze audio: $e');

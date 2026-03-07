@@ -1,35 +1,63 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../viewmodels/my_bookings_viewmodel.dart';
 import 'home_screen.dart';
 import 'worker_listing_screen.dart';
+import 'proposals_hub_screen.dart';
 import 'my_bookings_screen.dart';
 import 'profile_screen.dart';
 
-class MainNavigationScreen extends StatefulWidget {
+class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
 
   @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  ConsumerState<MainNavigationScreen> createState() =>
+      _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
+class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const WorkerListingScreen(),
-    const MyBookingsScreen(),
-    const ProfileScreen(),
-  ];
+  // Lazy screen list — only build a screen widget on first visit to that tab.
+  // Prevents all 5 screens (and their providers) from loading at startup.
+  final List<Widget?> _screens = List.filled(5, null);
+
+  Widget _screenAt(int index) {
+    return _screens[index] ??= switch (index) {
+      0 => const HomeScreen(),
+      1 => const WorkerListingScreen(),
+      2 => const ProposalsHubScreen(),
+      3 => const MyBookingsScreen(),
+      _ => const ProfileScreen(),
+    };
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Always pre-build the home tab so it's ready on first render.
+    _screenAt(0);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final pendingCount = ref.watch(
+      proposalsHubProvider.select((s) => s.pendingCount),
+    );
+
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: List.generate(
+          5,
+          (i) => _screens[i] ?? const SizedBox.shrink(),
+        ),
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -38,6 +66,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) {
+            _screenAt(
+              index,
+            ); // instantiate before build so IndexedStack sees real widget
             setState(() {
               _currentIndex = index;
             });
@@ -49,23 +80,38 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           showSelectedLabels: true,
           showUnselectedLabels: true,
           elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
+          items: [
+            const BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
               label: 'Home',
             ),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
               icon: Icon(Icons.search_outlined),
               activeIcon: Icon(Icons.search),
               label: 'Search',
             ),
             BottomNavigationBarItem(
+              icon: pendingCount > 0
+                  ? Badge(
+                      label: Text('$pendingCount'),
+                      child: const Icon(Icons.description_outlined),
+                    )
+                  : const Icon(Icons.description_outlined),
+              activeIcon: pendingCount > 0
+                  ? Badge(
+                      label: Text('$pendingCount'),
+                      child: const Icon(Icons.description),
+                    )
+                  : const Icon(Icons.description),
+              label: 'Proposals',
+            ),
+            const BottomNavigationBarItem(
               icon: Icon(Icons.receipt_long_outlined),
               activeIcon: Icon(Icons.receipt_long),
               label: 'Bookings',
             ),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person),
               label: 'Profile',

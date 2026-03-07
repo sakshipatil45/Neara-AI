@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/worker_model.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/workers_viewmodel.dart';
+import '../services/location_service.dart';
+import 'worker_map_screen.dart';
 
 // ─────────────── Worker Listing Screen ───────────────
 class WorkerListingScreen extends ConsumerStatefulWidget {
@@ -31,13 +33,15 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialCategory != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref
-            .read(workersViewModelProvider.notifier)
-            .filterByCategory(widget.initialCategory!);
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notifier = ref.read(workersViewModelProvider.notifier);
+      if (widget.initialCategory != null) {
+        notifier.filterByCategory(widget.initialCategory!);
+      } else if (ref.read(workersViewModelProvider).workers.isEmpty) {
+        // First visit — load the default (all) worker list.
+        notifier.loadWorkers();
+      }
+    });
   }
 
   static const _categories = [
@@ -104,8 +108,8 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
                           onPressed: () => Navigator.pop(context),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                            minWidth: 44,
+                            minHeight: 44,
                           ),
                           icon: const Icon(
                             Icons.arrow_back_ios_new_rounded,
@@ -121,8 +125,7 @@ class _WorkerListingScreenState extends ConsumerState<WorkerListingScreen> {
                               widget.initialCategory != null
                                   ? '${widget.initialCategory} Workers'
                                   : 'Find Workers',
-                              style:
-                                  Theme.of(context).textTheme.headlineLarge,
+                              style: Theme.of(context).textTheme.headlineLarge,
                             ),
                             Text(
                               '${workersState.workers.length} professionals near you',
@@ -677,12 +680,23 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
   late TextEditingController _summaryCtrl;
   String _urgency = 'medium';
   bool _submitted = false;
+  double? _distanceKm;
 
   @override
   void initState() {
     super.initState();
     _summaryCtrl = TextEditingController(text: widget.prefillSummary ?? '');
     _urgency = widget.prefillUrgency ?? 'medium';
+    _fetchDistance();
+  }
+
+  Future<void> _fetchDistance() async {
+    await LocationService.instance.getCurrentPosition();
+    final d = LocationService.instance.distanceTo(
+      widget.worker.latitude,
+      widget.worker.longitude,
+    );
+    if (mounted && d != null) setState(() => _distanceKm = d);
   }
 
   @override
@@ -818,6 +832,96 @@ class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
 
                           const SizedBox(height: 20),
                           const Divider(color: AppTheme.borderDefault),
+
+                          // Distance + View on Map row
+                          if (_distanceKm != null ||
+                              widget.worker.latitude != null) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                if (_distanceKm != null) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryBlue.withOpacity(
+                                        0.08,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: AppTheme.primaryBlue.withOpacity(
+                                          0.2,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.near_me_rounded,
+                                          size: 13,
+                                          color: AppTheme.primaryBlue,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          LocationService.formatDistance(
+                                            _distanceKm!,
+                                          ),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.primaryBlue,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                if (widget.worker.latitude != null &&
+                                    widget.worker.longitude != null)
+                                  OutlinedButton.icon(
+                                    onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => WorkerMapScreen(
+                                          worker: widget.worker,
+                                        ),
+                                      ),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.map_rounded,
+                                      size: 14,
+                                    ),
+                                    label: const Text('View on Map'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppTheme.textSecondary,
+                                      side: const BorderSide(
+                                        color: AppTheme.borderDefault,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      minimumSize: const Size(44, 44),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.padded,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+
                           const SizedBox(height: 16),
 
                           // Heading

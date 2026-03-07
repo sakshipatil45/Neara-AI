@@ -71,10 +71,10 @@ class _ActiveJobCardState extends State<ActiveJobCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.jobData['service_category'] ?? 'Active Job',
+                            widget.jobData['customer_name'] ?? 'Customer',
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
-                              fontSize: 12,
+                              fontSize: 14,
                               color: Color(0xFF1E293B),
                               letterSpacing: -0.5,
                             ),
@@ -138,40 +138,20 @@ class _ActiveJobCardState extends State<ActiveJobCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Container(height: 1, color: const Color(0xFFF1F5F9)),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.location_on_rounded,
-                      size: 16,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Location details shared upon acceptance',
-                    style: TextStyle(
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ActiveJobScreen(jobData: widget.jobData),
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.navigation_rounded, size: 16),
                       label: const Text(
                         'Navigate',
@@ -205,7 +185,15 @@ class _ActiveJobCardState extends State<ActiveJobCard> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ActiveJobScreen(jobData: widget.jobData),
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.check_circle_rounded, size: 16),
                       label: const Text(
                         'Complete',
