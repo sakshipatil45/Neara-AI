@@ -57,12 +57,20 @@ final intentViewModelProvider = NotifierProvider<IntentViewModel, IntentState>(
 
 // ----- VIEW MODEL -----
 class IntentViewModel extends Notifier<IntentState> {
-  /// Timer that auto-stops recording after [_maxRecordDuration].
-  /// Sarvam is a batch API with no streaming, so silence detection is not
-  /// possible; the user must tap Stop or wait for this timer.
   Timer? _maxDurationTimer;
 
-  /// Maximum recording duration before auto-submitting to Sarvam.
+  /// Silence detection via periodic amplitude polling.
+  Timer? _pollTimer;
+  Timer? _silenceTimer;
+  bool _hasSpeechStarted = false;
+
+  /// dBFS above this = speech detected (0 = max, -160 = total silence).
+  static const double _silenceThresholdDb = -40.0;
+
+  /// How long silence must persist after speech before auto-stopping.
+  static const Duration _silenceDelay = Duration(milliseconds: 1500);
+
+  /// Maximum recording duration (hard cap).
   static const Duration _maxRecordDuration = Duration(seconds: 60);
 
   @override
@@ -74,6 +82,10 @@ class IntentViewModel extends Notifier<IntentState> {
   void _cancelTimers() {
     _maxDurationTimer?.cancel();
     _maxDurationTimer = null;
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _silenceTimer?.cancel();
+    _silenceTimer = null;
   }
 
   Future<void> startRecording() async {
@@ -94,6 +106,27 @@ class IntentViewModel extends Notifier<IntentState> {
     try {
       final sttService = ref.read(sttServiceProvider);
       await sttService.startRecording();
+
+      // ── Silence detection via polling ──────────────────────────────────
+      // Poll amplitude every 150 ms. Only start the silence countdown
+      // after at least one above-threshold sample (i.e. user has spoken).
+      _hasSpeechStarted = false;
+      _pollTimer = Timer.periodic(const Duration(milliseconds: 150), (_) async {
+        if (state is! IntentListening) {
+          _pollTimer?.cancel();
+          return;
+        }
+        final db = await sttService.getAmplitudeDb();
+        if (db > _silenceThresholdDb) {
+          _hasSpeechStarted = true;
+          _silenceTimer?.cancel();
+          _silenceTimer = null;
+        } else if (_hasSpeechStarted) {
+          _silenceTimer ??= Timer(_silenceDelay, () {
+            if (state is IntentListening) stopRecordingAndAnalyze();
+          });
+        }
+      });
     } catch (e) {
       _cancelTimers();
       state = IntentError(e.toString());

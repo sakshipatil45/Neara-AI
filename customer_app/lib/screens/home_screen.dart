@@ -12,60 +12,65 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundSecondary,
-      body: CustomScrollView(
-        slivers: [
-          // ── Sticky header ──
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 0,
-            backgroundColor: AppTheme.backgroundPrimary,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 1,
-            shadowColor: Colors.black.withValues(alpha: 0.08),
-            flexibleSpace: const SafeArea(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.screenBackgroundGradient,
+        ),
+        child: CustomScrollView(
+          slivers: [
+            // ── Sticky header ──
+            SliverAppBar(
+              pinned: true,
+              expandedHeight: 0,
+              backgroundColor: AppTheme.backgroundPrimary,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 1,
+              shadowColor: Colors.black.withValues(alpha: 0.08),
+              flexibleSpace: const SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: HomeHeader(),
+                ),
+              ),
+              toolbarHeight: 72,
+            ),
+
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: HomeHeader(),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Voice section label ──
+                    _SectionLabel(
+                      icon: Icons.mic_rounded,
+                      label: 'Book a Service',
+                      iconColor: AppTheme.primaryBlue,
+                    ),
+                    const SizedBox(height: 12),
+                    const VoiceHeroCard(),
+                    const SizedBox(height: 24),
+
+                    // ── Emergency ──
+                    _SectionLabel(
+                      icon: Icons.emergency_rounded,
+                      label: 'Emergency',
+                      iconColor: AppTheme.errorRed,
+                    ),
+                    const SizedBox(height: 12),
+                    const SosCard(),
+                    const SizedBox(height: 24),
+
+                    // ── Quick services ──
+                    const QuickServicesList(),
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
-            toolbarHeight: 72,
-          ),
-
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Voice section label ──
-                  _SectionLabel(
-                    icon: Icons.mic_rounded,
-                    label: 'Book a Service',
-                    iconColor: AppTheme.primaryBlue,
-                  ),
-                  const SizedBox(height: 12),
-                  const VoiceHeroCard(),
-                  const SizedBox(height: 24),
-
-                  // ── Emergency ──
-                  _SectionLabel(
-                    icon: Icons.emergency_rounded,
-                    label: 'Emergency',
-                    iconColor: AppTheme.errorRed,
-                  ),
-                  const SizedBox(height: 12),
-                  const SosCard(),
-                  const SizedBox(height: 24),
-
-                  // ── Quick services ──
-                  const QuickServicesList(),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

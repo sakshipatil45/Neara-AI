@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../services/auth_service.dart';
 import '../viewmodels/intent_viewmodel.dart';
 import '../screens/intent_processing_screen.dart';
 import '../screens/intent_summary_screen.dart';
@@ -20,6 +21,7 @@ class _VoiceHeroCardState extends ConsumerState<VoiceHeroCard>
   late AnimationController _waveController;
   late Animation<double> _pulseAnimation;
   bool _processingNavigated = false;
+  String _userName = '';
 
   @override
   void initState() {
@@ -36,6 +38,16 @@ class _VoiceHeroCardState extends ConsumerState<VoiceHeroCard>
       duration: const Duration(milliseconds: 800),
     );
     _requestPermissionProactively();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final user = await AuthService().getCurrentUserData();
+    if (mounted && user != null) {
+      setState(() {
+        _userName = user.name.split(' ').first;
+      });
+    }
   }
 
   Future<void> _requestPermissionProactively() async {
@@ -126,7 +138,9 @@ class _VoiceHeroCardState extends ConsumerState<VoiceHeroCard>
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundPrimary,
+        gradient: isListening
+            ? AppTheme.heroCardListeningGradient
+            : AppTheme.heroCardGradient,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isListening
@@ -146,42 +160,36 @@ class _VoiceHeroCardState extends ConsumerState<VoiceHeroCard>
       ),
       child: Column(
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isListening
-                          ? 'Listening\u2026'
-                          : isEmpty
-                          ? 'Nothing heard'
-                          : 'What do you need?',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: isListening
-                                ? AppTheme.primaryBlue
-                                : AppTheme.textPrimary,
-                            letterSpacing: -0.3,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isListening
-                          ? 'Speak in English, Hindi, or Marathi'
-                          : isEmpty
-                          ? 'Tap the mic and speak clearly'
-                          : 'Tap the mic and describe your need',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textTertiary,
-                      ),
-                    ),
-                  ],
+              Text(
+                isListening
+                    ? 'Listening\u2026'
+                    : isEmpty
+                    ? 'Nothing heard'
+                    : _userName.isNotEmpty
+                    ? 'Hi, $_userName!'
+                    : 'Hi there!',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: isListening
+                      ? AppTheme.primaryBlue
+                      : AppTheme.textPrimary,
+                  letterSpacing: -0.3,
                 ),
               ),
-              _LanguagePillRow(disabled: isListening),
+              const SizedBox(height: 4),
+              Text(
+                isListening
+                    ? 'Speak clearly \u2014 stops when you pause'
+                    : isEmpty
+                    ? 'No speech detected \u2014 try again'
+                    : 'Describe your need by speaking in your language',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textTertiary),
+              ),
             ],
           ),
           const SizedBox(height: 28),
@@ -343,7 +351,7 @@ class _VoiceHeroCardState extends ConsumerState<VoiceHeroCard>
           ),
         const SizedBox(height: 8),
         const Text(
-          'Tap to submit',
+          'Stops after silence…',
           style: TextStyle(fontSize: 12, color: AppTheme.textDisabled),
         ),
       ],
@@ -379,108 +387,7 @@ class _VoiceHeroCardState extends ConsumerState<VoiceHeroCard>
       );
     }
 
-    return Wrap(
-      key: const ValueKey('idle'),
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
-      children: const [
-        _ExampleChip('"My pipe is leaking"'),
-        _ExampleChip('"Electrician chahiye"'),
-        _ExampleChip('"AC repair urgent"'),
-      ],
-    );
-  }
-}
-
-class _ExampleChip extends StatelessWidget {
-  final String label;
-  const _ExampleChip(this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.borderDefault),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          color: AppTheme.textTertiary,
-          fontStyle: FontStyle.italic,
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Language pill row  (EN / हि / मर)
-// ---------------------------------------------------------------------------
-
-class _LangOption {
-  final String label;
-  final String? localeId; // null = auto
-  const _LangOption(this.label, this.localeId);
-}
-
-class _LanguagePillRow extends ConsumerWidget {
-  /// While recording is active the pills are non-interactive.
-  final bool disabled;
-  const _LanguagePillRow({required this.disabled});
-
-  static const _options = [
-    _LangOption('Auto', null),
-    _LangOption('EN', 'en-IN'),
-    _LangOption('हि', 'hi-IN'),
-    _LangOption('मर', 'mr-IN'),
-  ];
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(selectedLocaleProvider);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: _options.map((opt) {
-        final isActive = opt.localeId == selected;
-        return GestureDetector(
-          onTap: disabled
-              ? null
-              : () => ref
-                    .read(selectedLocaleProvider.notifier)
-                    .select(opt.localeId),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            margin: const EdgeInsets.only(left: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? AppTheme.primaryBlue
-                  : AppTheme.primaryBlue.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isActive
-                    ? AppTheme.primaryBlue
-                    : AppTheme.primaryBlue.withValues(alpha: 0.18),
-              ),
-            ),
-            child: Text(
-              opt.label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: isActive ? Colors.white : AppTheme.primaryBlue,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
+    // Nothing shown in idle state
+    return const SizedBox.shrink(key: ValueKey('idle'));
   }
 }

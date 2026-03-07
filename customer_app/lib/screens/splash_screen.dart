@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../main.dart' show pendingSosLaunch, clearPendingSos;
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,15 +17,26 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkSession() async {
-    await Future.delayed(const Duration(seconds: 2));
-    
+    // Skip the branding delay when opened via the SOS home-screen widget so
+    // the voice input screen appears immediately.
+    if (!pendingSosLaunch) {
+      await Future.delayed(const Duration(seconds: 2));
+    }
+
     final userId = await AuthService().getLoggedUserId();
-    
+
     if (!mounted) return;
-    
+
     if (userId != null) {
-      Navigator.pushReplacementNamed(context, '/home');
+      if (pendingSosLaunch) {
+        // Go directly to the SOS activation screen without touching /home first.
+        clearPendingSos();
+        Navigator.pushReplacementNamed(context, '/sos-activate');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     } else {
+      clearPendingSos(); // clear stale flag if user is somehow logged out
       Navigator.pushReplacementNamed(context, '/auth');
     }
   }

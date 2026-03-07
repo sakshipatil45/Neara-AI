@@ -8,6 +8,7 @@ import 'screens/splash_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/emergency_page.dart';
+import 'screens/sos_activation_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -20,13 +21,18 @@ Future<void> main() async {
     anonKey: 'sb_publishable_DwFD22YKXPAoq1wYbnrY5A_we0Id-cB',
   );
 
-  runApp(
-    const ProviderScope(child: CustomerApp()),
-  );
+  runApp(const ProviderScope(child: CustomerApp()));
 }
 
 // ─── MethodChannel for pinned shortcut ───────────────────────────────────────
 const _kSosChannel = MethodChannel('com.example.customer_app/sos_shortcut');
+
+// ─── Pending SOS launch flag ─────────────────────────────────────────────────
+// Set to true when the app is opened via the home-screen widget or shortcut.
+// SplashScreen reads this after auth resolves and pushes /sos-activate.
+bool _pendingSosLaunch = false;
+bool get pendingSosLaunch => _pendingSosLaunch;
+void clearPendingSos() => _pendingSosLaunch = false;
 
 /// Call once after the app is fully loaded to place a pinned SOS shortcut on
 /// the Android home screen. The OS will show a system dialog asking the user
@@ -65,9 +71,12 @@ class _CustomerAppState extends State<CustomerApp> {
   void _initQuickActions() {
     _quickActions.initialize((shortcutType) {
       if (shortcutType == 'sos') {
-        navigatorKey.currentState?.pushNamedAndRemoveUntil(
-          '/emergency',
-          (route) => false,
+        // App is already running — navigate directly, keeping /home in the stack
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => const SOSActivationScreen(autoStart: true),
+            settings: const RouteSettings(name: '/sos-activate'),
+          ),
         );
       }
     });
@@ -86,13 +95,8 @@ class _CustomerAppState extends State<CustomerApp> {
     try {
       final openSos = await _kSosChannel.invokeMethod<bool>('checkSosIntent');
       if (openSos == true) {
-        // Wait for the navigator to be ready, then route to EmergencyPage
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          navigatorKey.currentState?.pushNamedAndRemoveUntil(
-            '/emergency',
-            (route) => false,
-          );
-        });
+        // Store flag — SplashScreen will push /sos-activate after auth
+        _pendingSosLaunch = true;
       }
     } catch (_) {
       // Not on Android or channel not ready — silently ignore
@@ -111,6 +115,8 @@ class _CustomerAppState extends State<CustomerApp> {
         '/auth': (context) => const AuthScreen(),
         '/home': (context) => const MainNavigationScreen(),
         '/emergency': (context) => const EmergencyPage(),
+        '/sos-activate': (context) =>
+            const SOSActivationScreen(autoStart: true),
       },
     );
   }
