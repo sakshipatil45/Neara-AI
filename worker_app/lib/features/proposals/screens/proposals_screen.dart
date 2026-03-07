@@ -13,7 +13,7 @@ class ProposalsScreen extends ConsumerWidget {
     final proposalsAsync = ref.watch(workerProposalsProvider);
 
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
@@ -38,7 +38,6 @@ class ProposalsScreen extends ConsumerWidget {
             tabs: const [
               Tab(text: 'Pending'),
               Tab(text: 'Accepted'),
-              Tab(text: 'Completed'),
             ],
           ),
         ),
@@ -55,25 +54,11 @@ class ProposalsScreen extends ConsumerWidget {
                 proposals
                     .where(
                       (p) =>
-                          p['status'] == 'ACCEPTED' &&
-                          p['service_requests']?['status'] !=
-                              'SERVICE_COMPLETED' &&
-                          p['service_requests']?['status'] != 'COMPLETED',
+                          p['status'] == 'ACCEPTED' ||
+                          p['status'] == 'PROPOSAL_ACCEPTED',
                     )
                     .toList(),
                 'No active accepted proposals',
-              ),
-              _buildProposalList(
-                context,
-                proposals
-                    .where(
-                      (p) =>
-                          p['service_requests']?['status'] ==
-                              'SERVICE_COMPLETED' ||
-                          p['service_requests']?['status'] == 'COMPLETED',
-                    )
-                    .toList(),
-                'No completed jobs yet',
               ),
             ],
           ),

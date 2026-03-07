@@ -150,3 +150,14 @@ final earningsStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
     'history': history,
   };
 });
+
+// Worker Reviews Provider
+final workerReviewsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
+  final worker = await ref.watch(currentWorkerProvider.future);
+  if (worker == null) return [];
+
+  final service = ref.watch(dashboardServiceProvider);
+  return service.getWorkerReviews(worker.id);
+});

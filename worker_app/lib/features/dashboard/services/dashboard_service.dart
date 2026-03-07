@@ -177,7 +177,7 @@ class DashboardService {
       // Try matching upper/lower case for common initial statuses
       final response = await _supabase
           .from('service_requests')
-          .select()
+          .select('*, users!service_requests_customer_id_fkey(name)')
           .or(
             'status.eq.MATCHING,status.eq.matching,status.eq.PENDING,status.eq.pending,status.eq.CREATED,status.eq.created',
           )
@@ -188,7 +188,16 @@ class DashboardService {
         'DEBUG: Found ${response.length} matching requests with broad status check',
       );
 
-      return List<Map<String, dynamic>>.from(response);
+      List<Map<String, dynamic>> requests = [];
+      for (var req in response) {
+        final mergedReq = Map<String, dynamic>.from(req);
+        if (req['users'] != null && req['users']['name'] != null) {
+          mergedReq['customer_name'] = req['users']['name'];
+        }
+        requests.add(mergedReq);
+      }
+
+      return requests;
     } catch (e) {
       print('DEBUG: ERROR in getIncomingRequests: $e');
       return [];
@@ -202,10 +211,10 @@ class DashboardService {
         'DEBUG: [getActiveJobs] Fetching from jobs table for worker $workerId',
       );
 
-      // 1. Fetch active jobs from the 'jobs' table and join with 'service_requests'
+      // 1. Fetch active jobs from the 'jobs' table and join with 'service_requests' and 'users'
       final response = await _supabase
           .from('jobs')
-          .select('*, service_requests(*)')
+          .select('*, service_requests(*), users!jobs_customer_id_fkey(name)')
           .eq('worker_id', workerId)
           .not('status', 'eq', 'COMPLETED')
           .not('status', 'eq', 'SERVICE_COMPLETED')
@@ -223,6 +232,10 @@ class DashboardService {
           mergedJob['before_photo_url'] = job['before_photo_url'];
           mergedJob['after_photo_url'] = job['after_photo_url'];
           mergedJob['started_at'] = job['started_at'];
+
+          if (job['users'] != null && job['users']['name'] != null) {
+            mergedJob['customer_name'] = job['users']['name'];
+          }
 
           activeJobs.add(mergedJob);
         }
@@ -282,21 +295,41 @@ class DashboardService {
     }
   }
 
-  // Fetch jobs by status (Pending, Active, Completed) - Keep for specific filtering if needed
+  // Fetch jobs by status from jobs table
   Future<List<Map<String, dynamic>>> getJobsByStatus(
     dynamic workerId,
     List<String> statuses,
   ) async {
     try {
       final response = await _supabase
-          .from('service_requests')
-          .select()
+          .from('jobs')
+          .select('*, service_requests(*), users!jobs_customer_id_fkey(name)')
           .eq('worker_id', workerId)
           .inFilter('status', statuses)
           .order('created_at', ascending: false);
 
-      return List<Map<String, dynamic>>.from(response);
+      List<Map<String, dynamic>> res = [];
+      for (var job in response) {
+        final requestData = job['service_requests'];
+        if (requestData != null) {
+          final mergedJob = Map<String, dynamic>.from(requestData);
+          mergedJob['status'] = job['status'];
+          mergedJob['job_id'] = job['id'];
+          mergedJob['before_photo_url'] = job['before_photo_url'];
+          mergedJob['after_photo_url'] = job['after_photo_url'];
+          mergedJob['started_at'] = job['started_at'];
+          mergedJob['completed_at'] = job['completed_at'];
+
+          if (job['users'] != null && job['users']['name'] != null) {
+            mergedJob['customer_name'] = job['users']['name'];
+          }
+
+          res.add(mergedJob);
+        }
+      }
+      return res;
     } catch (e) {
+      print('DEBUG: [getJobsByStatus] Error: $e');
       return [];
     }
   }
@@ -658,6 +691,36 @@ class DashboardService {
         );
       }
       return null;
+    }
+  }
+
+  // Fetch reviews given by customers for this worker
+  Future<List<Map<String, dynamic>>> getWorkerReviews(dynamic workerId) async {
+    try {
+      print('DEBUG: [getWorkerReviews] Fetching reviews for worker $workerId');
+
+      final response = await _supabase
+          .from('reviews')
+          .select('*, users!reviews_customer_id_fkey(name)')
+          .eq('worker_id', workerId)
+          .order('created_at', ascending: false);
+
+      List<Map<String, dynamic>> reviews = [];
+      for (var rev in response) {
+        final mergedRev = Map<String, dynamic>.from(rev);
+        if (rev['users'] != null && rev['users']['name'] != null) {
+          mergedRev['customer_name'] = rev['users']['name'];
+        } else {
+          mergedRev['customer_name'] = 'Anonymous';
+        }
+        reviews.add(mergedRev);
+      }
+
+      print('DEBUG: [getWorkerReviews] Found ${reviews.length} reviews');
+      return reviews;
+    } catch (e) {
+      print('DEBUG: [getWorkerReviews] ERROR: $e');
+      return [];
     }
   }
 }

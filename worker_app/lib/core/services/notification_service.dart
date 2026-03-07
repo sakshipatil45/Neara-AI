@@ -47,8 +47,8 @@ class NotificationService {
       // Only notify if it's a new pending request (broadcast to all)
       if (status == 'PENDING' || status == 'CREATED') {
         _showNotification(
-          title: 'New Service Request',
-          message: 'A new user request was just posted nearby.',
+          title: 'You have a new request!',
+          message: 'A new service request is available nearby.',
           icon: Icons.notifications_active_rounded,
           color: Colors.blue,
         );
@@ -62,16 +62,16 @@ class NotificationService {
         if (status == 'PROPOSAL_ACCEPTED') {
           _showNotification(
             title: 'Proposal Accepted!',
-            message:
-                'The customer accepted your proposal. Please proceed to payment.',
+            message: 'The customer has accepted your proposal.',
             icon: Icons.check_circle_rounded,
             color: Colors.green,
           );
-        } else if (status == 'WORKER_COMING' || status == 'ADVANCE_PAID') {
+        } else if (status == 'WORKER_COMING' ||
+            status == 'ADVANCE_PAID' ||
+            status == 'ADVANCE_PAYMENT_DONE') {
           _showNotification(
-            title: 'Advance Payment Received',
-            message:
-                'The customer paid the advance. Please head to the location.',
+            title: 'Advance Payment Done',
+            message: 'The customer has completed the advance payment.',
             icon: Icons.payments_rounded,
             color: Colors.teal,
           );

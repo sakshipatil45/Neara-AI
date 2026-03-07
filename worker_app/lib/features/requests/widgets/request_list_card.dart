@@ -21,13 +21,12 @@ class _RequestListCardState extends State<RequestListCard> {
   @override
   Widget build(BuildContext context) {
     // Generate some mock data for the UI if missing
-    final serviceCategory =
-        widget.requestData['service_category'] ?? 'Service Request';
+    final customerName =
+        widget.requestData['customer_name'] ?? 'Customer Request';
     final description =
         widget.requestData['issue_description'] ??
         'Need assistance at the specified location.';
     final payment = 'Quote Required';
-    final location = widget.requestData['location_name'] ?? 'Local Area';
 
     final createdAtStr = widget.requestData['created_at'];
     String timeAgo = 'Just now';
@@ -96,7 +95,7 @@ class _RequestListCardState extends State<RequestListCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          serviceCategory,
+                          customerName,
                           style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
@@ -105,29 +104,6 @@ class _RequestListCardState extends State<RequestListCard> {
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on_rounded,
-                              size: 14,
-                              color: Color(0xFF64748B),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                location,
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
                         ),
                         const SizedBox(height: 8),
                         Text(

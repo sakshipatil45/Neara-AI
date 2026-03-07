@@ -7,7 +7,7 @@ import '../../requests/screens/requests_screen.dart';
 import '../../earnings/screens/earnings_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../../core/services/notification_service.dart';
-import '../../../providers/auth_provider.dart';
+import '../../dashboard/providers/dashboard_provider.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -25,9 +25,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     super.initState();
     Future.microtask(() async {
       try {
-        final user = await ref.read(currentUserProvider.future);
-        if (user != null) {
-          ref.read(notificationServiceProvider).startListening(user.id);
+        final worker = await ref.read(currentWorkerProvider.future);
+        if (worker != null) {
+          ref
+              .read(notificationServiceProvider)
+              .startListening(worker.id.toString());
         }
       } catch (e) {
         debugPrint('Notification init error: $e');
