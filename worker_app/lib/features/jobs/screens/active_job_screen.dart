@@ -157,10 +157,15 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
     final status =
         widget.jobData['status']?.toString().toUpperCase() ?? 'PENDING';
     final isActiveOrPending =
-        status == 'PENDING' ||
         status == 'ACCEPTED' ||
         status == 'CREATED' ||
-        status == 'PROPOSAL_ACCEPTED';
+        status == 'PROPOSAL_ACCEPTED' ||
+        status == 'WORKER_COMING' ||
+        status == 'COMMING' ||
+        status == 'ADVANCE_PAYMENT_DONE' ||
+        status == 'ADVANCE PAID' ||
+        status == 'WORKER_ARRIVED' ||
+        status == 'SERVICE_STARTED';
 
     // Format timestamp
     String formattedTime = 'N/A';
