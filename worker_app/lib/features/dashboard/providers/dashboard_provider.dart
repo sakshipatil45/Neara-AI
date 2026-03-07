@@ -133,23 +133,69 @@ final activeJobsProvider = FutureProvider<List<Map<String, dynamic>>>((
   return service.getActiveJobs(worker.id);
 });
 
-// Full Earnings Stats Provider
-final earningsStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final worker = await ref.watch(currentWorkerProvider.future);
-  if (worker == null) {
-    return {'total': 0.0, 'history': []};
+// Full Earnings Stats Provider - now real-time Notifier
+class EarningsNotifier extends Notifier<AsyncValue<Map<String, dynamic>>> {
+  RealtimeChannel? _channel;
+
+  @override
+  AsyncValue<Map<String, dynamic>> build() {
+    ref.onDispose(() {
+      _channel?.unsubscribe();
+      _channel = null;
+    });
+    _init();
+    return const AsyncValue.loading();
   }
 
-  final service = ref.watch(dashboardServiceProvider);
-  final stats = await service.getEarningsStats(worker.id);
+  Future<void> _init() async {
+    final worker = await ref.watch(currentWorkerProvider.future);
+    if (worker == null) {
+      state = AsyncValue.data({'total': 0.0, 'history': []});
+      return;
+    }
 
-  final history = stats['history'] as List<dynamic>? ?? [];
+    await refresh();
 
-  return {
-    'total': (stats['total'] as num?)?.toDouble() ?? 0.0,
-    'history': history,
-  };
-});
+    // Subscribe to payments changes for this worker
+    _channel = Supabase.instance.client
+        .channel('public:payments')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'payments',
+          callback: (payload) {
+            print(
+              'DEBUG: [EarningsNotifier] Payment change detected! Refreshing...',
+            );
+            refresh(); // Simply re-fetch everything for accuracy
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> refresh() async {
+    final worker = await ref.read(currentWorkerProvider.future);
+    if (worker == null) return;
+
+    final service = ref.read(dashboardServiceProvider);
+    try {
+      final stats = await service.getEarningsStats(worker.id);
+      final history = stats['history'] as List<dynamic>? ?? [];
+
+      state = AsyncValue.data({
+        'total': (stats['total'] as num?)?.toDouble() ?? 0.0,
+        'history': history,
+      });
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+}
+
+final earningsStatsProvider =
+    NotifierProvider<EarningsNotifier, AsyncValue<Map<String, dynamic>>>(
+      EarningsNotifier.new,
+    );
 
 // Worker Reviews Provider
 final workerReviewsProvider = FutureProvider<List<Map<String, dynamic>>>((

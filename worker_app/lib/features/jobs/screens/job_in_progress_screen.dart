@@ -28,7 +28,8 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
   @override
   void initState() {
     super.initState();
-    _currentStatus = widget.jobData['status'] ?? 'WORKER_COMING';
+    _currentStatus = (widget.jobData['status'] as String? ?? 'WORKER_COMING')
+        .toUpperCase();
     _startTimer();
     _fetchProposalData();
   }
@@ -87,6 +88,57 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
     if (phone != null) {
       final url = Uri.parse('tel:$phone');
       if (await canLaunchUrl(url)) await launchUrl(url);
+    }
+  }
+
+  Future<void> _launchMap() async {
+    final lat = widget.jobData['customer_lat'] ?? widget.jobData['latitude'];
+    final lng = widget.jobData['customer_lng'] ?? widget.jobData['longitude'];
+
+    if (lat == null || lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location coordinates not available')),
+      );
+      return;
+    }
+
+    // Try multiple schemes for better compatibility
+    final urls = [
+      Uri.parse('google.navigation:q=$lat,$lng'), // Android native
+      Uri.parse('geo:$lat,$lng?q=$lat,$lng'), // Android fallback
+      Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+      ), // Universal
+    ];
+
+    bool launched = false;
+    for (final url in urls) {
+      try {
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+          launched = true;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (!launched) {
+      // Final attempt without canLaunchUrl check (sometimes it fails incorrectly)
+      try {
+        await launchUrl(
+          Uri.parse(
+            'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+          ),
+          mode: LaunchMode.externalApplication,
+        );
+        launched = true;
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Could not launch maps: $e')));
+        }
+      }
     }
   }
 
@@ -149,25 +201,6 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
               workerId: workerId,
             );
       } else {
-        // Special case for Confirm Advance button: check payment first
-        if (nextStatus == 'ADVANCE_PAYMENT_DONE') {
-          final isPaid = await ref
-              .read(dashboardServiceProvider)
-              .hasAdvancePayment(id);
-          if (!isPaid) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Waiting for customer to pay advance...'),
-                  backgroundColor: Colors.blueGrey,
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            }
-            return;
-          }
-        }
-
         await ref
             .read(dashboardServiceProvider)
             .updateJobStatus(id, nextStatus);
@@ -246,12 +279,6 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
           ),
           const Divider(height: 32),
           _infoRow(
-            Icons.build_circle_rounded,
-            widget.jobData['service_category'] ?? 'Service',
-            'Category',
-          ),
-          const Divider(height: 32),
-          _infoRow(
             Icons.location_on_rounded,
             widget.jobData['location_name'] ?? 'Location',
             'Address',
@@ -300,6 +327,7 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
   }
 
   Widget _buildPhotoSection() {
+    final normalizedStatus = _currentStatus.toUpperCase();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -314,18 +342,28 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
                 color: Color(0xFF64748B),
               ),
             ),
-            if (_currentStatus == 'WORKER_ARRIVED' && _beforePhotoUrl == null)
+            if (normalizedStatus != 'PENDING' &&
+                normalizedStatus != 'SERVICE_COMPLETED' &&
+                normalizedStatus != 'COMPLETED' &&
+                normalizedStatus != 'SERVICE_CLOSED' &&
+                normalizedStatus != 'RATED' &&
+                _beforePhotoUrl == null)
               const Text(
-                'Required*',
+                'Recommended',
                 style: TextStyle(
                   color: Colors.orange,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            if (_currentStatus == 'SERVICE_STARTED' && _afterPhotoUrl == null)
+            if (normalizedStatus != 'PENDING' &&
+                normalizedStatus != 'SERVICE_COMPLETED' &&
+                normalizedStatus != 'COMPLETED' &&
+                normalizedStatus != 'SERVICE_CLOSED' &&
+                normalizedStatus != 'RATED' &&
+                _afterPhotoUrl == null)
               const Text(
-                'Required*',
+                'Recommended',
                 style: TextStyle(
                   color: Colors.orange,
                   fontSize: 10,
@@ -340,31 +378,39 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
             _photoBox(
               'Before',
               _beforePhotoUrl,
-              (_currentStatus == 'WORKER_ARRIVED' ||
-                      _currentStatus == 'ADVANCE_PAYMENT_DONE' ||
-                      _currentStatus == 'SERVICE_STARTED')
+              (normalizedStatus != 'PENDING' &&
+                      normalizedStatus != 'SERVICE_COMPLETED' &&
+                      normalizedStatus != 'COMPLETED' &&
+                      normalizedStatus != 'SERVICE_CLOSED' &&
+                      normalizedStatus != 'RATED')
                   ? () => _pick(true)
                   : null,
               isEnabled:
                   _beforePhotoUrl != null ||
-                  _currentStatus == 'WORKER_ARRIVED' ||
-                  _currentStatus == 'ADVANCE_PAYMENT_DONE' ||
-                  _currentStatus == 'SERVICE_STARTED',
+                  (normalizedStatus != 'PENDING' &&
+                      normalizedStatus != 'SERVICE_COMPLETED' &&
+                      normalizedStatus != 'COMPLETED' &&
+                      normalizedStatus != 'SERVICE_CLOSED' &&
+                      normalizedStatus != 'RATED'),
             ),
             const SizedBox(width: 16),
             _photoBox(
               'After',
               _afterPhotoUrl,
-              (_currentStatus == 'SERVICE_STARTED' ||
-                      _currentStatus == 'SERVICE_COMPLETED' ||
-                      _currentStatus == 'COMPLETED')
+              (normalizedStatus != 'PENDING' &&
+                      normalizedStatus != 'SERVICE_COMPLETED' &&
+                      normalizedStatus != 'COMPLETED' &&
+                      normalizedStatus != 'SERVICE_CLOSED' &&
+                      normalizedStatus != 'RATED')
                   ? () => _pick(false)
                   : null,
               isEnabled:
                   _afterPhotoUrl != null ||
-                  _currentStatus == 'SERVICE_STARTED' ||
-                  _currentStatus == 'SERVICE_COMPLETED' ||
-                  _currentStatus == 'COMPLETED',
+                  (normalizedStatus != 'PENDING' &&
+                      normalizedStatus != 'SERVICE_COMPLETED' &&
+                      normalizedStatus != 'COMPLETED' &&
+                      normalizedStatus != 'SERVICE_CLOSED' &&
+                      normalizedStatus != 'RATED'),
             ),
           ],
         ),
@@ -600,35 +646,34 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
   }
 
   Widget _buildActionButtons() {
+    final normalizedStatus = _currentStatus.toUpperCase();
     String label = '';
     String next = '';
     Color c = AppTheme.primaryBlue;
     IconData icon = Icons.check_circle_rounded;
 
-    if (_currentStatus == 'WORKER_COMING' ||
-        _currentStatus == 'ADVANCE_PAID' ||
-        _currentStatus == 'ACCEPTED' ||
-        _currentStatus == 'PROPOSAL_ACCEPTED') {
+    if (normalizedStatus == 'WORKER_COMING' ||
+        normalizedStatus == 'ADVANCE_PAID' ||
+        normalizedStatus == 'ACCEPTED' ||
+        normalizedStatus == 'PROPOSAL_ACCEPTED') {
       label = 'Confirm Arrival';
       next = 'WORKER_ARRIVED';
       icon = Icons.location_on_rounded;
-    } else if (_currentStatus == 'WORKER_ARRIVED') {
-      label = 'Confirm Advance';
-      next = 'ADVANCE_PAYMENT_DONE';
-      c = Colors.orange;
-      icon = Icons.payments_rounded;
-    } else if (_currentStatus == 'ADVANCE_PAYMENT_DONE') {
+    } else if (normalizedStatus == 'WORKER_ARRIVED' ||
+        normalizedStatus == 'ADVANCE_PAYMENT_DONE') {
       label = 'Start Service';
       next = 'SERVICE_STARTED';
       c = const Color(0xFF8B5CF6);
       icon = Icons.play_arrow_rounded;
-    } else if (_currentStatus == 'SERVICE_STARTED') {
+    } else if (normalizedStatus == 'SERVICE_STARTED') {
       label = 'Complete Job';
       next = 'SERVICE_COMPLETED';
       c = const Color(0xFF10B981);
       icon = Icons.task_alt_rounded;
-    } else if (_currentStatus == 'SERVICE_COMPLETED' ||
-        _currentStatus == 'COMPLETED') {
+    } else if (normalizedStatus == 'SERVICE_COMPLETED' ||
+        normalizedStatus == 'COMPLETED' ||
+        normalizedStatus == 'SERVICE_CLOSED' ||
+        normalizedStatus == 'RATED') {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
@@ -652,6 +697,31 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
               ),
             ],
           ),
+        ),
+      );
+    } else if (normalizedStatus == 'PENDING') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.blue),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Awaiting worker approval for request',
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
         ),
       );
     } else
@@ -681,6 +751,23 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: c,
               elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: OutlinedButton.icon(
+            onPressed: _launchMap,
+            icon: const Icon(Icons.map_rounded),
+            label: const Text('Navigate to Location'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.primaryBlue,
+              side: BorderSide(color: AppTheme.primaryBlue),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),

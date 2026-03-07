@@ -31,7 +31,8 @@ class EarningsScreen extends ConsumerWidget {
           final total = stats['total'] ?? 0.0;
 
           return RefreshIndicator(
-            onRefresh: () async => ref.refresh(earningsStatsProvider),
+            onRefresh: () async =>
+                ref.read(earningsStatsProvider.notifier).refresh(),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(24.0),
