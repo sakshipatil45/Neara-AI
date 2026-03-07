@@ -22,6 +22,17 @@ class SttService {
 
   bool get isListening => _isRecording;
 
+  /// Returns current amplitude in dBFS (0 = max, negative = quieter).
+  /// Call this periodically while recording to detect silence.
+  Future<double> getAmplitudeDb() async {
+    try {
+      final amp = await _recorder.getAmplitude();
+      return amp.current;
+    } catch (_) {
+      return -160.0;
+    }
+  }
+
   /// No async init required for Sarvam (kept for API compatibility).
   Future<bool> init() async => true;
 

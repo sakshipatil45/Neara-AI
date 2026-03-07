@@ -16,7 +16,8 @@ const _kSosChannel = MethodChannel('com.example.customer_app/sos_shortcut');
 class SosEmergencyService {
   static const String _baseUrl =
       'https://openrouter.ai/api/v1/chat/completions';
-  static const String _model = 'meta-llama/llama-3.1-8b-instruct:free';
+  static const String _primaryModel = 'meta-llama/llama-3.1-8b-instruct:free';
+  static const String _fallbackModel = 'openai/gpt-4o-mini';
   static const Duration _timeout = Duration(seconds: 12);
 
   // ── AI Summarization ──────────────────────────────────────────────────────
@@ -68,6 +69,41 @@ RULES:
       final userMessage =
           'Customer name: $customerName\nTranscript: "$transcript"';
 
+      final result = await _callModel(
+        model: _primaryModel,
+        apiKey: apiKey,
+        systemPrompt: systemPrompt,
+        userMessage: userMessage,
+      );
+      if (result != null) return result;
+
+      // Primary model failed (404 / unavailable) — try fallback
+      print('🔄 SOS: switching to fallback model $_fallbackModel');
+      final fallback = await _callModel(
+        model: _fallbackModel,
+        apiKey: apiKey,
+        systemPrompt: systemPrompt,
+        userMessage: userMessage,
+      );
+      if (fallback != null) return fallback;
+      return _fallbackSummary(transcript, customerName);
+    } on TimeoutException {
+      print('⏱️ SOS AI timeout');
+      return _fallbackSummary(transcript, customerName);
+    } catch (e) {
+      print('❌ SOS AI error: $e');
+      return _fallbackSummary(transcript, customerName);
+    }
+  }
+
+  /// Tries one specific model. Returns null if the model is unavailable (404).
+  Future<String?> _callModel({
+    required String model,
+    required String apiKey,
+    required String systemPrompt,
+    required String userMessage,
+  }) async {
+    try {
       final response = await http
           .post(
             Uri.parse(_baseUrl),
@@ -78,7 +114,7 @@ RULES:
               'X-Title': 'Neara Customer App',
             },
             body: jsonEncode({
-              'model': _model,
+              'model': model,
               'messages': [
                 {'role': 'system', 'content': systemPrompt},
                 {'role': 'user', 'content': userMessage},
@@ -90,21 +126,18 @@ RULES:
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final content =
-            (data['choices'][0]['message']['content'] as String).trim();
-        print('✅ SOS AI summary: $content');
+        final content = (data['choices'][0]['message']['content'] as String)
+            .trim();
+        print('✅ SOS AI summary ($model): $content');
         if (content.contains('Emergency Alert')) return content;
         return '🚨 Emergency Alert\n\n$content';
       } else {
-        print('⚠️ OpenRouter ${response.statusCode}: ${response.body}');
-        return _fallbackSummary(transcript, customerName);
+        print('! OpenRouter ${response.statusCode}: ${response.body}');
+        return null; // Signal caller to try next model
       }
-    } on TimeoutException {
-      print('⏱️ SOS AI timeout');
-      return _fallbackSummary(transcript, customerName);
     } catch (e) {
-      print('❌ SOS AI error: $e');
-      return _fallbackSummary(transcript, customerName);
+      print('❌ _callModel ($model): $e');
+      return null;
     }
   }
 

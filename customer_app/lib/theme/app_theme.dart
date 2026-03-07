@@ -43,6 +43,29 @@ class AppTheme {
   static const Color borderFocus = Color(0xFF2563EB);
   static const Color borderError = Color(0xFFDC2626);
 
+  // Gradients
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [primaryBlue, primaryDark],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  static const LinearGradient heroCardGradient = LinearGradient(
+    colors: [Color(0xFFF0F7FF), Color(0xFFFFFFFF)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  static const LinearGradient heroCardListeningGradient = LinearGradient(
+    colors: [Color(0xFFEBF4FF), Color(0xFFF5F9FF)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  static const LinearGradient screenBackgroundGradient = LinearGradient(
+    colors: [Color(0xFFEFF6FF), Color(0xFFF5F9FF), Color(0xFFF9FAFB)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    stops: [0.0, 0.3, 1.0],
+  );
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -61,18 +84,78 @@ class AppTheme {
       ),
       fontFamily: 'Inter',
       textTheme: const TextTheme(
-        displayLarge: TextStyle(fontSize: 48, height: 1.2, fontWeight: FontWeight.w700, color: textPrimary),
-        displayMedium: TextStyle(fontSize: 36, height: 1.3, fontWeight: FontWeight.w600, color: textPrimary),
-        displaySmall: TextStyle(fontSize: 30, height: 1.4, fontWeight: FontWeight.w600, color: textPrimary),
-        headlineLarge: TextStyle(fontSize: 24, height: 1.4, fontWeight: FontWeight.w600, color: textPrimary),
-        headlineMedium: TextStyle(fontSize: 20, height: 1.5, fontWeight: FontWeight.w500, color: textPrimary),
-        headlineSmall: TextStyle(fontSize: 18, height: 1.5, fontWeight: FontWeight.w500, color: textPrimary),
-        bodyLarge: TextStyle(fontSize: 16, height: 1.6, fontWeight: FontWeight.w400, color: textSecondary),
-        bodyMedium: TextStyle(fontSize: 14, height: 1.5, fontWeight: FontWeight.w400, color: textSecondary),
-        bodySmall: TextStyle(fontSize: 12, height: 1.4, fontWeight: FontWeight.w400, color: textTertiary),
-        labelLarge: TextStyle(fontSize: 16, height: 1.0, fontWeight: FontWeight.w600, color: Colors.white), // Button Large
-        labelMedium: TextStyle(fontSize: 14, height: 1.0, fontWeight: FontWeight.w500, color: primaryBlue), // Button Medium
-        labelSmall: TextStyle(fontSize: 12, height: 1.0, fontWeight: FontWeight.w500, color: textSecondary), // Button Small
+        displayLarge: TextStyle(
+          fontSize: 48,
+          height: 1.2,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
+        displayMedium: TextStyle(
+          fontSize: 36,
+          height: 1.3,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
+        displaySmall: TextStyle(
+          fontSize: 30,
+          height: 1.4,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
+        headlineLarge: TextStyle(
+          fontSize: 24,
+          height: 1.4,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 20,
+          height: 1.5,
+          fontWeight: FontWeight.w500,
+          color: textPrimary,
+        ),
+        headlineSmall: TextStyle(
+          fontSize: 18,
+          height: 1.5,
+          fontWeight: FontWeight.w500,
+          color: textPrimary,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          height: 1.6,
+          fontWeight: FontWeight.w400,
+          color: textSecondary,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          height: 1.5,
+          fontWeight: FontWeight.w400,
+          color: textSecondary,
+        ),
+        bodySmall: TextStyle(
+          fontSize: 12,
+          height: 1.4,
+          fontWeight: FontWeight.w400,
+          color: textTertiary,
+        ),
+        labelLarge: TextStyle(
+          fontSize: 16,
+          height: 1.0,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ), // Button Large
+        labelMedium: TextStyle(
+          fontSize: 14,
+          height: 1.0,
+          fontWeight: FontWeight.w500,
+          color: primaryBlue,
+        ), // Button Medium
+        labelSmall: TextStyle(
+          fontSize: 12,
+          height: 1.0,
+          fontWeight: FontWeight.w500,
+          color: textSecondary,
+        ), // Button Small
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: backgroundPrimary,
@@ -95,9 +178,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 48),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
           elevation: 1, // Level 1
           textStyle: const TextStyle(
             fontFamily: 'Inter',
@@ -110,9 +191,20 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: backgroundPrimary,
-        hintStyle: const TextStyle(color: gray400, fontSize: 16, fontWeight: FontWeight.w400),
-        labelStyle: const TextStyle(color: textSecondary, fontSize: 16, fontWeight: FontWeight.w400),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        hintStyle: const TextStyle(
+          color: gray400,
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+        ),
+        labelStyle: const TextStyle(
+          color: textSecondary,
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),
           borderSide: const BorderSide(color: borderDefault, width: 1),

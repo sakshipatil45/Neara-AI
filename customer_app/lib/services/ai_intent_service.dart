@@ -8,14 +8,16 @@ import '../models/service_intent_model.dart';
 
 class AiIntentService {
   // OpenRouter API configuration
-  static const String _baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
+  static const String _baseUrl =
+      'https://openrouter.ai/api/v1/chat/completions';
   static const String _primaryModel = 'meta-llama/llama-3.1-8b-instruct:free';
   static const String _fallbackModel = 'openai/gpt-4o-mini';
   static const Duration _timeout = Duration(seconds: 10);
 
   final http.Client _httpClient;
 
-  AiIntentService({http.Client? httpClient}) : _httpClient = httpClient ?? http.Client();
+  AiIntentService({http.Client? httpClient})
+    : _httpClient = httpClient ?? http.Client();
 
   /// Helper method to make OpenRouter API calls
   Future<String> _callOpenRouter({
@@ -26,7 +28,7 @@ class AiIntentService {
   }) async {
     final selectedModel = model ?? _primaryModel;
     final apiKey = Env.openRouterApiKey;
-    
+
     if (apiKey.isEmpty || apiKey == 'YOUR_OPENROUTER_API_KEY_HERE') {
       throw Exception('OPENROUTER_API_KEY is missing from .env');
     }
@@ -60,6 +62,17 @@ class AiIntentService {
         print('✅ OpenRouter response received');
         return content;
       } else {
+        // 404 means the model is unavailable — switch to fallback immediately
+        print('! OpenRouter ${response.statusCode}: ${response.body}');
+        if (retryCount < 2 && selectedModel == _primaryModel) {
+          print('🔄 Switching to fallback model: $_fallbackModel');
+          return _callOpenRouter(
+            systemPrompt: systemPrompt,
+            userMessage: userMessage,
+            model: _fallbackModel,
+            retryCount: retryCount + 1,
+          );
+        }
         throw Exception(
           'OpenRouter API error: ${response.statusCode} - ${response.body}',
         );
@@ -69,26 +82,6 @@ class AiIntentService {
       throw Exception('Request timeout after ${_timeout.inSeconds}s');
     } catch (e) {
       print('❌ OpenRouter error: $e');
-
-      // Retry logic with fallback model
-      if (retryCount == 0 && selectedModel == _primaryModel) {
-        print('🔄 Retrying with same model...');
-        return _callOpenRouter(
-          systemPrompt: systemPrompt,
-          userMessage: userMessage,
-          model: selectedModel,
-          retryCount: 1,
-        );
-      } else if (retryCount == 1 && selectedModel == _primaryModel) {
-        print('🔄 Switching to fallback model: $_fallbackModel');
-        return _callOpenRouter(
-          systemPrompt: systemPrompt,
-          userMessage: userMessage,
-          model: _fallbackModel,
-          retryCount: 2,
-        );
-      }
-
       rethrow;
     }
   }
@@ -107,7 +100,9 @@ class AiIntentService {
     try {
       // Build system prompt
       final systemPrompt = StringBuffer()
-        ..writeln('You are an advanced AI risk assessment assistant for a home services and roadside assistance platform.')
+        ..writeln(
+          'You are an advanced AI risk assessment assistant for a home services and roadside assistance platform.',
+        )
         ..writeln('Your job is to analyze user service requests and determine:')
         ..writeln('1. Service type')
         ..writeln('2. Urgency level')
@@ -118,7 +113,9 @@ class AiIntentService {
         ..writeln('While analyzing, consider:')
         ..writeln('A. Environmental Context')
         ..writeln('- Time of day (night increases risk)')
-        ..writeln('- Location type (highway, rural, isolated areas increase risk)')
+        ..writeln(
+          '- Location type (highway, rural, isolated areas increase risk)',
+        )
         ..writeln('- Weather conditions if mentioned')
         ..writeln('- Traffic exposure')
         ..writeln('B. Vulnerability Context')
@@ -138,29 +135,55 @@ class AiIntentService {
         ..writeln('CRITICAL:')
         ..writeln('Immediate threat to life or major safety hazard.')
         ..writeln('HIGH:')
-        ..writeln('Serious issue with possible safety consequences but not immediately life-threatening.')
+        ..writeln(
+          'Serious issue with possible safety consequences but not immediately life-threatening.',
+        )
         ..writeln('MEDIUM:')
         ..writeln('Repair needed soon but no safety danger.')
         ..writeln('LOW:')
         ..writeln('Routine or non-urgent request.')
-        ..writeln('If context is insufficient or ambiguous, reduce confidence score.')
+        ..writeln(
+          'If context is insufficient or ambiguous, reduce confidence score.',
+        )
         ..writeln('If uncertainty is high, set "needs_clarification" to true.')
         ..writeln('Respond strictly in JSON:')
         ..writeln('{')
         ..writeln('CRITICAL RULES FOR service_type:')
-        ..writeln('- "fan not working", "AC not working", "fridge broken", "appliance repair" -> electrician')
-        ..writeln('- "bike", "car", "vehicle", "engine", "tyre", "puncture", "breakdown" -> mechanic')
-        ..writeln('- "water leak", "tap", "pipe", "drainage", "toilet", "bathroom issue" -> plumber')
-        ..writeln('- "gas", "LPG", "cylinder", "gas stove", "gas leak" -> gas service')
-        ..writeln('- "stranded", "tow", "accident", "highway", "stuck on road" -> roadside assistance')
-        ..writeln('- "sweeping", "mopping", "dusting", "cooking", "cleaning services" -> maid')
-        ..writeln('- "other" is ONLY allowed if the request is completely unrelated to any of the above.')
-        ..writeln('- ALWAYS make a best-guess category. Using "other" is a last resort.')
-        ..writeln('  "service_type": "mechanic | plumber | electrician | maid | roadside assistance | gas service | other",')
+        ..writeln(
+          '- "fan not working", "AC not working", "fridge broken", "appliance repair" -> electrician',
+        )
+        ..writeln(
+          '- "bike", "car", "vehicle", "engine", "tyre", "puncture", "breakdown" -> mechanic',
+        )
+        ..writeln(
+          '- "water leak", "tap", "pipe", "drainage", "toilet", "bathroom issue" -> plumber',
+        )
+        ..writeln(
+          '- "gas", "LPG", "cylinder", "gas stove", "gas leak" -> gas service',
+        )
+        ..writeln(
+          '- "stranded", "tow", "accident", "highway", "stuck on road" -> roadside assistance',
+        )
+        ..writeln(
+          '- "sweeping", "mopping", "dusting", "cooking", "cleaning services" -> maid',
+        )
+        ..writeln(
+          '- "other" is ONLY allowed if the request is completely unrelated to any of the above.',
+        )
+        ..writeln(
+          '- ALWAYS make a best-guess category. Using "other" is a last resort.',
+        )
+        ..writeln(
+          '  "service_type": "mechanic | plumber | electrician | maid | roadside assistance | gas service | other",',
+        )
         ..writeln('  "urgency_level": "CRITICAL | HIGH | MEDIUM | LOW",')
-        ..writeln('  "issue_summary": "Descriptive 5-10 word summary of the problem",')
+        ..writeln(
+          '  "issue_summary": "Descriptive 5-10 word summary of the problem",',
+        )
         ..writeln('  "risk_factors": ["risk1", "risk2"],')
-        ..writeln('  "reason": "One sentence explanation of your category and urgency choice",')
+        ..writeln(
+          '  "reason": "One sentence explanation of your category and urgency choice",',
+        )
         ..writeln('  "confidence": 0.0,')
         ..writeln('  "needs_clarification": false')
         ..writeln('}')
@@ -219,7 +242,8 @@ class AiIntentService {
         confidence: (map['confidence'] is num)
             ? (map['confidence'] as num).toDouble()
             : 0.0,
-        riskFactors: (map['risk_factors'] as List<dynamic>?)
+        riskFactors:
+            (map['risk_factors'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
             [],
@@ -239,15 +263,34 @@ class AiIntentService {
     final t = transcript.toLowerCase();
     ServiceCategory category = ServiceCategory.other;
 
-    if (t.contains('mechanic') || t.contains('car') || t.contains('breakdown') || t.contains('tire') || t.contains('battery')) {
+    if (t.contains('mechanic') ||
+        t.contains('car') ||
+        t.contains('breakdown') ||
+        t.contains('tire') ||
+        t.contains('battery')) {
       category = ServiceCategory.mechanic;
-    } else if (t.contains('plumber') || t.contains('leak') || t.contains('water') || t.contains('pipe') || t.contains('clog')) {
+    } else if (t.contains('plumber') ||
+        t.contains('leak') ||
+        t.contains('water') ||
+        t.contains('pipe') ||
+        t.contains('clog')) {
       category = ServiceCategory.plumber;
-    } else if (t.contains('electric') || t.contains('power') || t.contains('light') || t.contains('fuse') || t.contains('shock')) {
+    } else if (t.contains('electric') ||
+        t.contains('power') ||
+        t.contains('light') ||
+        t.contains('fuse') ||
+        t.contains('shock')) {
       category = ServiceCategory.electrician;
-    } else if (t.contains('maid') || t.contains('clean') || t.contains('dust') || t.contains('sweep') || t.contains('mop')) {
+    } else if (t.contains('maid') ||
+        t.contains('clean') ||
+        t.contains('dust') ||
+        t.contains('sweep') ||
+        t.contains('mop')) {
       category = ServiceCategory.maid;
-    } else if (t.contains('roadside') || t.contains('tow') || t.contains('accident') || t.contains('stuck')) {
+    } else if (t.contains('roadside') ||
+        t.contains('tow') ||
+        t.contains('accident') ||
+        t.contains('stuck')) {
       category = ServiceCategory.roadsideAssistance;
     } else if (t.contains('gas') || t.contains('leak') || t.contains('lpg')) {
       category = ServiceCategory.gasService;
@@ -257,7 +300,11 @@ class AiIntentService {
       issueSummary: transcript.length > 50
           ? '${transcript.substring(0, 47)}...'
           : transcript,
-      urgency: t.contains('urgent') || t.contains('emergency') || t.contains('fire') || t.contains('danger')
+      urgency:
+          t.contains('urgent') ||
+              t.contains('emergency') ||
+              t.contains('fire') ||
+              t.contains('danger')
           ? EmergencyUrgency.high
           : EmergencyUrgency.medium,
       locationHint: lat != null && lng != null ? '$lat, $lng' : 'Unknown',
@@ -276,12 +323,20 @@ class AiIntentService {
     double? userLng,
   }) async {
     final prompt = StringBuffer()
-      ..writeln('You are an AI-powered worker matching and ranking engine for a hyperlocal service platform.')
-      ..writeln('Your task is to intelligently rank available workers for a given service request.')
-      ..writeln('You must evaluate workers using contextual reasoning, not simple sorting or keyword matching.')
+      ..writeln(
+        'You are an AI-powered worker matching and ranking engine for a hyperlocal service platform.',
+      )
+      ..writeln(
+        'Your task is to intelligently rank available workers for a given service request.',
+      )
+      ..writeln(
+        'You must evaluate workers using contextual reasoning, not simple sorting or keyword matching.',
+      )
       ..writeln('Service Request Context:')
       ..writeln('- Type: ${interpretation.serviceCategory.name}')
-      ..writeln('- Note: For "roadside assistance" or "mechanic" requests, you SHOULD consider workers from BOTH categories if their skills align with the issue.')
+      ..writeln(
+        '- Note: For "roadside assistance" or "mechanic" requests, you SHOULD consider workers from BOTH categories if their skills align with the issue.',
+      )
       ..writeln('- Urgency: ${interpretation.urgency.name}')
       ..writeln('- Issue: ${interpretation.issueSummary}')
       ..writeln('- User Location: $userLat, $userLng')
@@ -295,7 +350,9 @@ class AiIntentService {
       ..writeln('    {')
       ..writeln('      "worker_id": "",')
       ..writeln('      "ranking_score": 0,')
-      ..writeln('      "recommendation_level": "PRIMARY | SECONDARY | STANDARD",')
+      ..writeln(
+        '      "recommendation_level": "PRIMARY | SECONDARY | STANDARD",',
+      )
       ..writeln('      "highlight_marker": true,')
       ..writeln('      "badge_label": "",')
       ..writeln('      "reason": ""')
@@ -305,12 +362,15 @@ class AiIntentService {
       ..writeln('Rules:')
       ..writeln('- Only ONE worker should have highlight_marker = true.')
       ..writeln('- That worker must be the highest ranked.')
-      ..writeln('- recommendation_level: PRIMARY = top, SECONDARY = strong alternative, STANDARD = normal.')
+      ..writeln(
+        '- recommendation_level: PRIMARY = top, SECONDARY = strong alternative, STANDARD = normal.',
+      )
       ..writeln('- Do not output text outside JSON.');
 
     try {
       final systemPrompt = prompt.toString();
-      final userMessage = 'Please rank these workers based on the criteria provided.';
+      final userMessage =
+          'Please rank these workers based on the criteria provided.';
 
       final text = await _callOpenRouter(
         systemPrompt: systemPrompt,
@@ -326,7 +386,8 @@ class AiIntentService {
               workerId: e['worker_id'].toString(),
               score: (e['ranking_score'] as num).toDouble(),
               reason: e['reason'].toString(),
-              recommendationLevel: e['recommendation_level']?.toString() ?? 'STANDARD',
+              recommendationLevel:
+                  e['recommendation_level']?.toString() ?? 'STANDARD',
               highlightMarker: e['highlight_marker'] == true,
               badgeLabel: e['badge_label']?.toString(),
             ),
@@ -340,11 +401,17 @@ class AiIntentService {
 
   Future<SearchFilters> interpretSearch(String query) async {
     final prompt = StringBuffer()
-      ..writeln('You help map natural language to filters for an Indian local worker app.')
+      ..writeln(
+        'You help map natural language to filters for an Indian local worker app.',
+      )
       ..writeln('User query: "$query"')
       ..writeln('Respond ONLY as compact JSON with keys:')
-      ..writeln('{"serviceCategory": "mechanic"|"plumber"|"electrician"|"maid"|"other"|null,')
-      ..writeln(' "radiusKm": number, "minRating": number, "verifiedOnly": boolean,')
+      ..writeln(
+        '{"serviceCategory": "mechanic"|"plumber"|"electrician"|"maid"|"other"|null,',
+      )
+      ..writeln(
+        ' "radiusKm": number, "minRating": number, "verifiedOnly": boolean,',
+      )
       ..writeln(' "genderPreference": "any"|"female"|"male" }');
 
     try {
@@ -378,9 +445,15 @@ class AiIntentService {
 
       return SearchFilters(
         serviceCategory: service,
-        radiusKm: (map['radiusKm'] is num) ? (map['radiusKm'] as num).toDouble() : 5,
-        minRating: (map['minRating'] is num) ? (map['minRating'] as num).toDouble() : 4.0,
-        verifiedOnly: map['verifiedOnly'] is bool ? map['verifiedOnly'] as bool : true,
+        radiusKm: (map['radiusKm'] is num)
+            ? (map['radiusKm'] as num).toDouble()
+            : 5,
+        minRating: (map['minRating'] is num)
+            ? (map['minRating'] as num).toDouble()
+            : 4.0,
+        verifiedOnly: map['verifiedOnly'] is bool
+            ? map['verifiedOnly'] as bool
+            : true,
         genderPreference: map['genderPreference']?.toString() ?? 'any',
       );
     } on TimeoutException {
@@ -393,8 +466,12 @@ class AiIntentService {
     String selectedLanguage = 'auto',
   }) async {
     final prompt = StringBuffer()
-      ..writeln('You are a multilingual AI assistant for a voice-first hyperlocal service platform.')
-      ..writeln('Your role is to understand user requests spoken in natural language and respond in the user\'s selected language.')
+      ..writeln(
+        'You are a multilingual AI assistant for a voice-first hyperlocal service platform.',
+      )
+      ..writeln(
+        'Your role is to understand user requests spoken in natural language and respond in the user\'s selected language.',
+      )
       ..writeln('Supported Languages:')
       ..writeln('- English (en)')
       ..writeln('- Hindi (hi)')
@@ -402,7 +479,9 @@ class AiIntentService {
       ..writeln()
       ..writeln('Core Responsibilities:')
       ..writeln('1. Language Selection Priority')
-      ..writeln('- If selected_language is provided ("$selectedLanguage") -> ALWAYS respond in that language.')
+      ..writeln(
+        '- If selected_language is provided ("$selectedLanguage") -> ALWAYS respond in that language.',
+      )
       ..writeln('- If selected_language = "auto" -> detect user language.')
       ..writeln('- If detected language is unsupported -> default to English.')
       ..writeln()
@@ -415,7 +494,9 @@ class AiIntentService {
       ..writeln('- Regional pronunciation variations')
       ..writeln()
       ..writeln('3. Normalization')
-      ..writeln('Convert user speech into a clean standardized request meaning.')
+      ..writeln(
+        'Convert user speech into a clean standardized request meaning.',
+      )
       ..writeln('Example:')
       ..writeln('"mera bike start nahi ho raha"')
       ..writeln('-> normalized_request = "Bike not starting"')
@@ -435,14 +516,18 @@ class AiIntentService {
       ..writeln('- Action oriented')
       ..writeln()
       ..writeln('6. Safety & Clarity Rule')
-      ..writeln('If request is unclear -> ask clarification question in selected_language.')
+      ..writeln(
+        'If request is unclear -> ask clarification question in selected_language.',
+      )
       ..writeln()
       ..writeln('7. Output Format')
       ..writeln('Return ONLY JSON:')
       ..writeln('{')
       ..writeln('  "detected_language": "en | hi | mr",')
       ..writeln('  "selected_language": "en | hi | mr",')
-      ..writeln('  "service_type": "mechanic | plumber | electrician | maid | roadside assistance | gas service | other",')
+      ..writeln(
+        '  "service_type": "mechanic | plumber | electrician | maid | roadside assistance | gas service | other",',
+      )
       ..writeln('  "normalized_request": "",')
       ..writeln('  "response_text": "",')
       ..writeln('  "confidence": 0.0,')
@@ -469,11 +554,17 @@ class AiIntentService {
     }
   }
 
-  Future<VoiceCommandInterpretation> interpretVoiceCommand(String transcript) async {
+  Future<VoiceCommandInterpretation> interpretVoiceCommand(
+    String transcript,
+  ) async {
     final prompt = StringBuffer()
-      ..writeln('You are a multilingual voice interpretation layer for an AI assistant.')
+      ..writeln(
+        'You are a multilingual voice interpretation layer for an AI assistant.',
+      )
       ..writeln('Your job is NOT to answer the user.')
-      ..writeln('Your job is to convert speech input into a standardized English intent so that downstream systems can process it.')
+      ..writeln(
+        'Your job is to convert speech input into a standardized English intent so that downstream systems can process it.',
+      )
       ..writeln()
       ..writeln('Supported Input Languages:')
       ..writeln('- English')
@@ -494,7 +585,9 @@ class AiIntentService {
       ..writeln('"mera tyre puncture ho gaya" -> "Tyre puncture"')
       ..writeln('"bike start nahi ho rahi" -> "Bike not starting"')
       ..writeln('4. Extract emotional urgency tone from wording:')
-      ..writeln('Indicators: panic words, danger words, stress words, urgent phrases')
+      ..writeln(
+        'Indicators: panic words, danger words, stress words, urgent phrases',
+      )
       ..writeln('Return urgency_level: CRITICAL, HIGH, MEDIUM, LOW')
       ..writeln('5. Keep normalized request short and structured.')
       ..writeln('6. Do NOT respond conversationally.')
@@ -505,7 +598,9 @@ class AiIntentService {
       ..writeln('Return JSON only:')
       ..writeln('{')
       ..writeln('  "detected_language": "",')
-      ..writeln('  "service_type": "mechanic | plumber | electrician | maid | roadside assistance | gas service | other",')
+      ..writeln(
+        '  "service_type": "mechanic | plumber | electrician | maid | roadside assistance | gas service | other",',
+      )
       ..writeln('  "normalized_intent": "",')
       ..writeln('  "urgency_level": "",')
       ..writeln('  "confidence": 0.0')

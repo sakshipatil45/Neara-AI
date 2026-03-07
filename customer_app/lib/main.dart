@@ -8,6 +8,7 @@ import 'screens/splash_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/emergency_page.dart';
+import 'screens/sos_activation_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -20,9 +21,7 @@ Future<void> main() async {
     anonKey: 'sb_publishable_DwFD22YKXPAoq1wYbnrY5A_we0Id-cB',
   );
 
-  runApp(
-    const ProviderScope(child: CustomerApp()),
-  );
+  runApp(const ProviderScope(child: CustomerApp()));
 }
 
 // ─── MethodChannel for pinned shortcut ───────────────────────────────────────
@@ -111,6 +110,8 @@ class _CustomerAppState extends State<CustomerApp> {
         '/auth': (context) => const AuthScreen(),
         '/home': (context) => const MainNavigationScreen(),
         '/emergency': (context) => const EmergencyPage(),
+        '/sos-activate': (context) =>
+            const SOSActivationScreen(autoStart: true),
       },
     );
   }

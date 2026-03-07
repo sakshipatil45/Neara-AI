@@ -3,26 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+import '../models/emergency_contact_model.dart';
+import '../services/stt_service.dart';
+import '../screens/emergency_contacts_screen.dart';
 import '../services/auth_service.dart';
+import '../services/emergency_contact_service.dart';
 import '../services/location_service.dart';
 import '../services/sos_emergency_service.dart';
-
-// ─── Mock contacts (name, relation, phone) ────────────────────────────────────
-
-class _Contact {
-  final String name;
-  final String relation;
-  final String phone;
-  const _Contact(this.name, this.relation, this.phone);
-}
-
-const _contacts = [
-  _Contact('Mom', 'Mother', '9876543210'),
-  _Contact('Rohit Kumar', 'Friend', '9123456780'),
-  _Contact('Sneha Gupta', 'Sister', '9988776655'),
-];
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const _kRed = Color(0xFFDC2626);
@@ -34,7 +22,10 @@ const _kDarkBg = Color(0xFF1A0000);
 enum _SosPhase { countdown, activated, listening, summarized }
 
 class SOSActivationScreen extends StatefulWidget {
-  const SOSActivationScreen({super.key});
+  const SOSActivationScreen({super.key, this.autoStart = false});
+
+  /// When true, skips the 5-second countdown and activates SOS immediately.
+  final bool autoStart;
 
   @override
   State<SOSActivationScreen> createState() => _SOSActivationScreenState();
@@ -49,9 +40,10 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
   // Phase
   _SosPhase _phase = _SosPhase.countdown;
 
-  // Voice
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  bool _speechReady = false;
+  // Voice — powered by Sarvam AI (multilingual, auto-detect)
+  final SttService _sttService = SttService();
+  Timer? _amplitudeTimer;
+  double _amplitude = -160.0;
   String _liveWords = '';
   String _finalWords = '';
   bool _isListening = false;
@@ -62,9 +54,13 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
   String _locationLink = 'https://maps.google.com/?q=0,0';
   String _customerName = 'User';
 
+  // Emergency contacts (loaded from Supabase)
+  List<EmergencyContactModel> _emergencyContacts = [];
+
   // Services
   final _sosService = SosEmergencyService();
   final _authService = AuthService();
+  final _contactService = EmergencyContactService();
 
   // Count ring animation
   late AnimationController _ringController;
@@ -81,9 +77,10 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
       vsync: this,
       duration: const Duration(seconds: 1),
     );
-    _ringAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _ringController, curve: Curves.linear),
-    );
+    _ringAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _ringController, curve: Curves.linear));
 
     _pulseController = AnimationController(
       vsync: this,
@@ -92,16 +89,22 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
 
     HapticFeedback.heavyImpact();
     _fetchUserName();
-    _startCountdown();
-    _initSpeech();
+    _loadContacts();
+    if (widget.autoStart) {
+      _activateSOS();
+    } else {
+      _startCountdown();
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _amplitudeTimer?.cancel();
     _ringController.dispose();
     _pulseController.dispose();
-    if (_isListening) _speech.stop();
+    if (_isListening) _sttService.cancelRecording();
+    _sttService.dispose();
     super.dispose();
   }
 
@@ -116,16 +119,9 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     }
   }
 
-  // ── Speech init ─────────────────────────────────────────────────────────────
-
-  Future<void> _initSpeech() async {
-    final status = await Permission.microphone.request();
-    if (status == PermissionStatus.granted) {
-      _speechReady = await _speech.initialize(
-        onError: (_) {},
-        onStatus: (_) {},
-      );
-    }
+  Future<void> _loadContacts() async {
+    final contacts = await _contactService.getContacts();
+    if (mounted) setState(() => _emergencyContacts = contacts);
   }
 
   // ── Countdown logic ─────────────────────────────────────────────────────────
@@ -159,48 +155,60 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     Future.delayed(const Duration(milliseconds: 1200), _startListening);
   }
 
-  // ── Voice recording ─────────────────────────────────────────────────────────
+  // ── Voice recording — Sarvam AI multilingual STT ──────────────────────────
 
   Future<void> _startListening() async {
-    if (!_speechReady || !mounted) return;
+    if (!mounted) return;
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) return;
+
     setState(() {
       _phase = _SosPhase.listening;
       _liveWords = '';
       _isListening = true;
     });
 
-    await _speech.listen(
-      onResult: (result) {
-        if (!mounted) return;
-        setState(() => _liveWords = result.recognizedWords);
-        if (result.finalResult) {
-          _finalWords = result.recognizedWords;
-        }
-      },
-      localeId: 'en-IN',
-      listenOptions: stt.SpeechListenOptions(
-        cancelOnError: false,
-        partialResults: true,
-        listenMode: stt.ListenMode.dictation,
-      ),
-    );
+    try {
+      await _sttService.startRecording();
+    } catch (e) {
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
 
-    // Auto-stop after 10 seconds
-    Future.delayed(const Duration(seconds: 10), () {
+    // Poll amplitude for the visual pulse indicator
+    _amplitudeTimer = Timer.periodic(const Duration(milliseconds: 100), (
+      _,
+    ) async {
+      if (!mounted || !_isListening) return;
+      final db = await _sttService.getAmplitudeDb();
+      if (mounted) setState(() => _amplitude = db);
+    });
+
+    // Hard cap at 15 s — Sarvam accepts up to 30 s audio
+    Future.delayed(const Duration(seconds: 15), () {
       if (mounted && _isListening) _stopListening();
     });
   }
 
   Future<void> _stopListening() async {
-    await _speech.stop();
-    if (!mounted) return;
-    final words = _finalWords.isNotEmpty ? _finalWords : _liveWords;
-    setState(() {
-      _isListening = false;
-      _finalWords = words;
-    });
+    if (!_isListening) return;
+    _amplitudeTimer?.cancel();
+    _amplitudeTimer = null;
+    setState(() => _isListening = false);
     _pulseController.stop();
-    // Trigger AI + GPS + SMS
+
+    String transcript = '';
+    try {
+      transcript = await _sttService.stopAndTranscribe();
+    } catch (_) {
+      // Proceed with empty transcript — AI will send a generic SOS message
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _finalWords = transcript;
+      _liveWords = transcript;
+    });
     await _processAndSend();
   }
 
@@ -214,8 +222,9 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
 
     // 1. Get live GPS location
     try {
-      final position = await LocationService.instance
-          .getCurrentPosition(forceRefresh: true);
+      final position = await LocationService.instance.getCurrentPosition(
+        forceRefresh: true,
+      );
       if (position != null) {
         _locationLink =
             'https://maps.google.com/?q=${position.latitude},${position.longitude}';
@@ -240,7 +249,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     await _sosService.sendSmsToContacts(
       summary: summary,
       locationLink: _locationLink,
-      phones: _contacts.map((c) => c.phone).toList(),
+      phones: _emergencyContacts.map((c) => c.phone).toList(),
     );
   }
 
@@ -248,7 +257,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
 
   void _cancelSOS() {
     _timer?.cancel();
-    if (_isListening) _speech.stop();
+    if (_isListening) _sttService.cancelRecording();
     Navigator.pop(context);
   }
 
@@ -271,8 +280,11 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                   // Back arrow
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back_ios_new,
-                        size: 20, color: Colors.white),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 20,
+                      color: Colors.white,
+                    ),
                     tooltip: 'Back',
                   ),
                   const Expanded(
@@ -290,14 +302,17 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                       onTap: _cancelSOS,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.white30),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text('Cancel',
-                            style: TextStyle(
-                                color: Colors.white70, fontSize: 13)),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
                       ),
                     ),
                 ],
@@ -460,8 +475,11 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                     ),
                   )
                 else
-                  const Icon(Icons.warning_amber_rounded,
-                      color: Colors.white, size: 32),
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
                 const SizedBox(height: 4),
                 const Text(
                   'SOS',
@@ -498,10 +516,10 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
         headline = '🎙️ Listening...';
         subtitle = 'Speak your emergency message clearly.';
       case _SosPhase.summarized:
-        headline = _isSummarizing ? '⏳ Generating Summary...' : '🚨 Emergency Alert';
-        subtitle = _isSummarizing
-            ? 'AI is processing your message...'
-            : '';
+        headline = _isSummarizing
+            ? '⏳ Generating Summary...'
+            : '🚨 Emergency Alert';
+        subtitle = _isSummarizing ? 'AI is processing your message...' : '';
     }
 
     return Column(
@@ -568,29 +586,51 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
               GestureDetector(
                 onTap: _stopListening,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _kRed,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text('Stop',
-                      style: TextStyle(color: Colors.white, fontSize: 12)),
+                  child: const Text(
+                    'Stop',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
+          // Amplitude bar — visual feedback while recording
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(9, (i) {
+              final active = _amplitude > -60.0;
+              final opacity = active ? (0.4 + 0.6 * ((i % 3 + 1) / 3)) : 0.2;
+              final height = active ? (6.0 + 10.0 * ((i % 3 + 1) / 3)) : 4.0;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 80),
+                width: 5,
+                height: height,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: _kRed.withOpacity(opacity),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 10),
           Text(
-            _liveWords.isEmpty
-                ? 'Speak now — e.g. "There is a fire in my house"'
-                : _liveWords,
-            style: TextStyle(
-              color: _liveWords.isEmpty ? Colors.white38 : Colors.white,
-              fontSize: 14,
+            'Speak in any language — Hindi, Tamil, Telugu, English…',
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 13,
               height: 1.5,
-              fontStyle:
-                  _liveWords.isEmpty ? FontStyle.italic : FontStyle.normal,
+              fontStyle: FontStyle.italic,
             ),
           ),
         ],
@@ -632,7 +672,10 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                       ? '🚨 Emergency Alert\n\n$_customerName has triggered an emergency SOS.'
                       : _aiSummary,
                   style: const TextStyle(
-                      color: Colors.white, fontSize: 14, height: 1.6),
+                    color: Colors.white,
+                    fontSize: 14,
+                    height: 1.6,
+                  ),
                 ),
             ],
           ),
@@ -654,11 +697,14 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
                 children: [
                   Icon(Icons.location_on, color: Colors.white60, size: 14),
                   SizedBox(width: 6),
-                  Text('Live Location',
-                      style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
+                  Text(
+                    'Live Location',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -679,8 +725,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
           const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.green.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
@@ -688,8 +733,7 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
             ),
             child: const Row(
               children: [
-                Icon(Icons.check_circle_outline,
-                    color: Colors.green, size: 16),
+                Icon(Icons.check_circle_outline, color: Colors.green, size: 16),
                 SizedBox(width: 8),
                 Text(
                   'SMS alert sent to emergency contacts',
@@ -709,16 +753,69 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Emergency Contacts',
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          children: [
+            const Text(
+              'Emergency Contacts',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const EmergencyContactsScreen(),
+                  ),
+                );
+                // Reload after returning from manage screen
+                _loadContacts();
+              },
+              child: const Text(
+                'Manage',
+                style: TextStyle(
+                  color: Color(0xFF60A5FA),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
-        ..._contacts.map((c) => _SosContactRow(name: c.name, relation: c.relation)),
+        if (_emergencyContacts.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.white38, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No emergency contacts added. Tap Manage to add contacts.',
+                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ..._emergencyContacts.map(
+            (c) => _SosContactRow(
+              name: c.name,
+              subtitle: c.relation.isNotEmpty ? c.relation : c.phone,
+            ),
+          ),
       ],
     );
   }
@@ -728,9 +825,9 @@ class _SOSActivationScreenState extends State<SOSActivationScreen>
 
 class _SosContactRow extends StatelessWidget {
   final String name;
-  final String relation;
+  final String subtitle;
 
-  const _SosContactRow({required this.name, required this.relation});
+  const _SosContactRow({required this.name, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -766,14 +863,18 @@ class _SosContactRow extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(name,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600)),
-              Text(relation,
-                  style:
-                      const TextStyle(color: Colors.white54, fontSize: 12)),
+              Text(
+                name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
             ],
           ),
         ],

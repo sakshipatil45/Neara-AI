@@ -1,26 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../main.dart' show pinSosShortcut;
+import '../models/emergency_contact_model.dart';
+import '../services/emergency_contact_service.dart';
+import 'emergency_contacts_screen.dart';
 import 'sos_activation_screen.dart';
-
-// ─── Mock emergency contacts (replace with Supabase data when backend ready) ──
-
-class _MockContact {
-  final String name;
-  final String relation;
-  final String phone;
-  const _MockContact({
-    required this.name,
-    required this.relation,
-    required this.phone,
-  });
-}
-
-const _mockContacts = [
-  _MockContact(name: 'Mom', relation: 'Mother', phone: '9876543210'),
-  _MockContact(name: 'Rohit Kumar', relation: 'Friend', phone: '9123456780'),
-  _MockContact(name: 'Sneha Gupta', relation: 'Sister', phone: '9988776655'),
-];
 
 // ─── Theme constants (matches app theme) ─────────────────────────────────────
 const Color _kRed = Color(0xFFDC2626);
@@ -45,6 +29,10 @@ class _EmergencyPageState extends State<EmergencyPage>
   late AnimationController _pulseController;
   late Animation<double> _pulseScale;
 
+  final _contactService = EmergencyContactService();
+  List<EmergencyContactModel> _contacts = [];
+  bool _loadingContacts = true;
+
   @override
   void initState() {
     super.initState();
@@ -55,8 +43,17 @@ class _EmergencyPageState extends State<EmergencyPage>
     _pulseScale = Tween<double>(begin: 1.0, end: 1.06).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    // Offer to pin the SOS shortcut to the home screen (only once)
     _maybeOfferPinShortcut();
+    _loadContacts();
+  }
+
+  Future<void> _loadContacts() async {
+    final result = await _contactService.getContacts();
+    if (mounted)
+      setState(() {
+        _contacts = result;
+        _loadingContacts = false;
+      });
   }
 
   Future<void> _maybeOfferPinShortcut() async {
@@ -95,8 +92,11 @@ class _EmergencyPageState extends State<EmergencyPage>
                   // Back arrow
                   IconButton(
                     onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back_ios_new,
-                        size: 20, color: _kTextPrimary),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 20,
+                      color: _kTextPrimary,
+                    ),
                     tooltip: 'Back',
                   ),
                   const Expanded(
@@ -121,10 +121,8 @@ class _EmergencyPageState extends State<EmergencyPage>
                   // Outer pulse ring
                   AnimatedBuilder(
                     animation: _pulseScale,
-                    builder: (_, child) => Transform.scale(
-                      scale: _pulseScale.value,
-                      child: child,
-                    ),
+                    builder: (_, child) =>
+                        Transform.scale(scale: _pulseScale.value, child: child),
                     child: GestureDetector(
                       onLongPress: _onSosHold,
                       child: Stack(
@@ -222,16 +220,41 @@ class _EmergencyPageState extends State<EmergencyPage>
                               color: _kRedLight,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.contact_phone,
-                                color: _kRed, size: 18),
+                            child: const Icon(
+                              Icons.contact_phone,
+                              color: _kRed,
+                              size: 18,
+                            ),
                           ),
                           const SizedBox(width: 10),
-                          const Text(
-                            'Emergency Contacts',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: _kTextPrimary,
+                          const Expanded(
+                            child: Text(
+                              'Emergency Contacts',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: _kTextPrimary,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const EmergencyContactsScreen(),
+                                ),
+                              );
+                              _loadContacts();
+                            },
+                            child: const Text(
+                              'Manage',
+                              style: TextStyle(
+                                color: Color(0xFF2563EB),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -240,12 +263,57 @@ class _EmergencyPageState extends State<EmergencyPage>
                       const SizedBox(height: 14),
 
                       // Contact cards
-                      ..._mockContacts.map(
-                        (c) => _ContactCard(
-                          name: c.name,
-                          relation: c.relation,
+                      if (_loadingContacts)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      else if (_contacts.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline,
+                                color: _kTextTertiary,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'No emergency contacts added.',
+                                  style: TextStyle(
+                                    color: _kTextTertiary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const EmergencyContactsScreen(),
+                                    ),
+                                  );
+                                  _loadContacts();
+                                },
+                                child: const Text('Add'),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        ..._contacts.map(
+                          (c) => _ContactCard(
+                            name: c.name,
+                            relation: c.relation,
+                            phone: c.phone,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -263,10 +331,12 @@ class _EmergencyPageState extends State<EmergencyPage>
 class _ContactCard extends StatelessWidget {
   final String name;
   final String relation;
+  final String phone;
 
   const _ContactCard({
     required this.name,
     required this.relation,
+    required this.phone,
   });
 
   @override
@@ -323,11 +393,8 @@ class _ContactCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  relation,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: _kTextTertiary,
-                  ),
+                  relation.isNotEmpty ? relation : phone,
+                  style: const TextStyle(fontSize: 12, color: _kTextTertiary),
                 ),
               ],
             ),
