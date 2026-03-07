@@ -57,13 +57,7 @@ class DashboardService {
       // Update both table for consistency, but target 'jobs' as primary
       await _supabase
           .from('jobs')
-          .update({
-            'status': status,
-            if (status == 'SERVICE_STARTED')
-              'started_at': DateTime.now().toIso8601String(),
-            if (status == 'COMPLETED' || status == 'SERVICE_COMPLETED')
-              'completed_at': DateTime.now().toIso8601String(),
-          })
+          .update({'status': status})
           .eq('request_id', requestId);
 
       // Keep service_requests status in sync
@@ -177,7 +171,9 @@ class DashboardService {
       // Try matching upper/lower case for common initial statuses
       final response = await _supabase
           .from('service_requests')
-          .select('*, users!service_requests_customer_id_fkey(name)')
+          .select(
+            '*, users!service_requests_customer_id_fkey(name, phone, latitude, longitude)',
+          )
           .or(
             'status.eq.MATCHING,status.eq.matching,status.eq.PENDING,status.eq.pending,status.eq.CREATED,status.eq.created',
           )
@@ -191,8 +187,16 @@ class DashboardService {
       List<Map<String, dynamic>> requests = [];
       for (var req in response) {
         final mergedReq = Map<String, dynamic>.from(req);
-        if (req['users'] != null && req['users']['name'] != null) {
-          mergedReq['customer_name'] = req['users']['name'];
+        if (req['users'] != null) {
+          if (req['users']['name'] != null) {
+            mergedReq['customer_name'] = req['users']['name'];
+          }
+          if (req['users']['latitude'] != null) {
+            mergedReq['customer_lat'] = req['users']['latitude'];
+          }
+          if (req['users']['longitude'] != null) {
+            mergedReq['customer_lng'] = req['users']['longitude'];
+          }
         }
         requests.add(mergedReq);
       }
@@ -214,7 +218,9 @@ class DashboardService {
       // 1. Fetch active jobs from the 'jobs' table and join with 'service_requests' and 'users'
       final response = await _supabase
           .from('jobs')
-          .select('*, service_requests(*), users!jobs_customer_id_fkey(name)')
+          .select(
+            '*, service_requests(*), users!jobs_customer_id_fkey(name, phone, latitude, longitude)',
+          )
           .eq('worker_id', workerId)
           .not('status', 'eq', 'COMPLETED')
           .not('status', 'eq', 'SERVICE_COMPLETED')
@@ -226,15 +232,24 @@ class DashboardService {
         final requestData = job['service_requests'];
         if (requestData != null) {
           final mergedJob = Map<String, dynamic>.from(requestData);
-          // Prioritize data from 'jobs' table
           mergedJob['status'] = job['status'];
           mergedJob['job_id'] = job['id'];
           mergedJob['before_photo_url'] = job['before_photo_url'];
           mergedJob['after_photo_url'] = job['after_photo_url'];
-          mergedJob['started_at'] = job['started_at'];
 
-          if (job['users'] != null && job['users']['name'] != null) {
-            mergedJob['customer_name'] = job['users']['name'];
+          if (job['users'] != null) {
+            if (job['users']['name'] != null) {
+              mergedJob['customer_name'] = job['users']['name'];
+            }
+            if (job['users']['phone'] != null) {
+              mergedJob['customer_phone'] = job['users']['phone'];
+            }
+            if (job['users']['latitude'] != null) {
+              mergedJob['customer_lat'] = job['users']['latitude'];
+            }
+            if (job['users']['longitude'] != null) {
+              mergedJob['customer_lng'] = job['users']['longitude'];
+            }
           }
 
           activeJobs.add(mergedJob);
@@ -303,7 +318,9 @@ class DashboardService {
     try {
       final response = await _supabase
           .from('jobs')
-          .select('*, service_requests(*), users!jobs_customer_id_fkey(name)')
+          .select(
+            '*, service_requests(*), users!jobs_customer_id_fkey(name, phone, latitude, longitude)',
+          )
           .eq('worker_id', workerId)
           .inFilter('status', statuses)
           .order('created_at', ascending: false);
@@ -317,11 +334,20 @@ class DashboardService {
           mergedJob['job_id'] = job['id'];
           mergedJob['before_photo_url'] = job['before_photo_url'];
           mergedJob['after_photo_url'] = job['after_photo_url'];
-          mergedJob['started_at'] = job['started_at'];
-          mergedJob['completed_at'] = job['completed_at'];
 
-          if (job['users'] != null && job['users']['name'] != null) {
-            mergedJob['customer_name'] = job['users']['name'];
+          if (job['users'] != null) {
+            if (job['users']['name'] != null) {
+              mergedJob['customer_name'] = job['users']['name'];
+            }
+            if (job['users']['phone'] != null) {
+              mergedJob['customer_phone'] = job['users']['phone'];
+            }
+            if (job['users']['latitude'] != null) {
+              mergedJob['customer_lat'] = job['users']['latitude'];
+            }
+            if (job['users']['longitude'] != null) {
+              mergedJob['customer_lng'] = job['users']['longitude'];
+            }
           }
 
           res.add(mergedJob);

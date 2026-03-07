@@ -90,6 +90,57 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
     }
   }
 
+  Future<void> _launchMap() async {
+    final lat = widget.jobData['customer_lat'] ?? widget.jobData['latitude'];
+    final lng = widget.jobData['customer_lng'] ?? widget.jobData['longitude'];
+
+    if (lat == null || lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location coordinates not available')),
+      );
+      return;
+    }
+
+    // Try multiple schemes for better compatibility
+    final urls = [
+      Uri.parse('google.navigation:q=$lat,$lng'), // Android native
+      Uri.parse('geo:$lat,$lng?q=$lat,$lng'), // Android fallback
+      Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+      ), // Universal
+    ];
+
+    bool launched = false;
+    for (final url in urls) {
+      try {
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+          launched = true;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (!launched) {
+      // Final attempt without canLaunchUrl check (sometimes it fails incorrectly)
+      try {
+        await launchUrl(
+          Uri.parse(
+            'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+          ),
+          mode: LaunchMode.externalApplication,
+        );
+        launched = true;
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Could not launch maps: $e')));
+        }
+      }
+    }
+  }
+
   Future<void> _updateStatus(String nextStatus) async {
     // Validation: Require Before Photo to start service
     if (nextStatus == 'SERVICE_STARTED' && _beforePhotoUrl == null) {
@@ -243,12 +294,6 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
             Icons.person_rounded,
             widget.jobData['customer_name'] ?? 'Customer',
             'Customer',
-          ),
-          const Divider(height: 32),
-          _infoRow(
-            Icons.build_circle_rounded,
-            widget.jobData['service_category'] ?? 'Service',
-            'Category',
           ),
           const Divider(height: 32),
           _infoRow(
@@ -681,6 +726,23 @@ class _JobInProgressScreenState extends ConsumerState<JobInProgressScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: c,
               elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: OutlinedButton.icon(
+            onPressed: _launchMap,
+            icon: const Icon(Icons.map_rounded),
+            label: const Text('Navigate to Location'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.primaryBlue,
+              side: BorderSide(color: AppTheme.primaryBlue),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),

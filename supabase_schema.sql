@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   email       TEXT,
   role        TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'worker', 'admin')),
   profile_image TEXT,
+  latitude    DOUBLE PRECISION,
+  longitude   DOUBLE PRECISION,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
