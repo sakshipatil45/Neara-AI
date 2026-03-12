@@ -1,0 +1,2 @@
+This is a new file created for the SOS branch.
+It does not change any existing project content.
