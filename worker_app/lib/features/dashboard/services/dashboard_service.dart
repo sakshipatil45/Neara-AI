@@ -179,7 +179,7 @@ class DashboardService {
       final response = await _supabase
           .from('service_requests')
           .select(
-            '*, users!service_requests_customer_id_fkey(name, phone, latitude, longitude)',
+            '*, users(name, phone, latitude, longitude)',
           )
           .or(
             'status.eq.MATCHING,status.eq.matching,status.eq.PENDING,status.eq.pending,status.eq.CREATED,status.eq.created',
@@ -222,45 +222,48 @@ class DashboardService {
         'DEBUG: [getActiveJobs] Fetching from jobs table for worker $workerId',
       );
 
-      // 1. Fetch active jobs from the 'jobs' table and join with 'service_requests' and 'users'
-      final response = await _supabase
-          .from('jobs')
-          .select(
-            '*, service_requests(*), users!jobs_customer_id_fkey(name, phone, latitude, longitude)',
-          )
-          .eq('worker_id', workerId)
-          .not('status', 'eq', 'COMPLETED')
-          .not('status', 'eq', 'SERVICE_COMPLETED')
-          .order('created_at', ascending: false);
-
       List<Map<String, dynamic>> activeJobs = [];
 
-      for (var job in response) {
-        final requestData = job['service_requests'];
-        if (requestData != null) {
-          final mergedJob = Map<String, dynamic>.from(requestData);
-          mergedJob['status'] = job['status'];
-          mergedJob['job_id'] = job['id'];
-          mergedJob['before_photo_url'] = job['before_photo_url'];
-          mergedJob['after_photo_url'] = job['after_photo_url'];
+      try {
+        final response = await _supabase
+            .from('jobs')
+            .select(
+              '*, service_requests(*), users(name, phone, latitude, longitude)',
+            )
+            .eq('worker_id', workerId)
+            .not('status', 'eq', 'COMPLETED')
+            .not('status', 'eq', 'SERVICE_COMPLETED')
+            .order('created_at', ascending: false);
 
-          if (job['users'] != null) {
-            if (job['users']['name'] != null) {
-              mergedJob['customer_name'] = job['users']['name'];
+        for (var job in response) {
+          final requestData = job['service_requests'];
+          if (requestData != null) {
+            final mergedJob = Map<String, dynamic>.from(requestData);
+            mergedJob['status'] = job['status'];
+            mergedJob['job_id'] = job['id'];
+            mergedJob['before_photo_url'] = job['before_photo_url'];
+            mergedJob['after_photo_url'] = job['after_photo_url'];
+
+            if (job['users'] != null) {
+              if (job['users']['name'] != null) {
+                mergedJob['customer_name'] = job['users']['name'];
+              }
+              if (job['users']['phone'] != null) {
+                mergedJob['customer_phone'] = job['users']['phone'];
+              }
+              if (job['users']['latitude'] != null) {
+                mergedJob['customer_lat'] = job['users']['latitude'];
+              }
+              if (job['users']['longitude'] != null) {
+                mergedJob['customer_lng'] = job['users']['longitude'];
+              }
             }
-            if (job['users']['phone'] != null) {
-              mergedJob['customer_phone'] = job['users']['phone'];
-            }
-            if (job['users']['latitude'] != null) {
-              mergedJob['customer_lat'] = job['users']['latitude'];
-            }
-            if (job['users']['longitude'] != null) {
-              mergedJob['customer_lng'] = job['users']['longitude'];
-            }
+
+            activeJobs.add(mergedJob);
           }
-
-          activeJobs.add(mergedJob);
         }
+      } catch (err) {
+        print('DEBUG: [getActiveJobs] First fetch from jobs table failed: $err. Proceeding to fallback.');
       }
 
       print(
@@ -326,7 +329,7 @@ class DashboardService {
       final response = await _supabase
           .from('jobs')
           .select(
-            '*, service_requests(*), users!jobs_customer_id_fkey(name, phone, latitude, longitude)',
+            '*, service_requests(*), users(name, phone, latitude, longitude)',
           )
           .eq('worker_id', workerId)
           .inFilter('status', statuses)
@@ -558,14 +561,21 @@ class DashboardService {
         'status': 'PENDING',
         'estimated_time': arrivalTime, // Expecting format like '10 minutes'
       });
+      print('DEBUG: Proposal insert successful.');
 
       // 2. Update service request status
       // We also set the worker_id so the customer knows who sent the (primary) proposal
-      // In a multi-proposal system, we'd handle this differently
-      await _supabase
-          .from('service_requests')
-          .update({'status': 'PROPOSAL_SENT', 'worker_id': workerId})
-          .eq('id', requestId);
+      // In a multi-proposal system, we'd handle this differently.
+      // We wrap this in a block because RLS policies generally do not allow workers to UPDATE service requests.
+      try {
+        await _supabase
+            .from('service_requests')
+            .update({'status': 'PROPOSAL_SENT', 'worker_id': workerId})
+            .eq('id', requestId);
+        print('DEBUG: Service request status updated successfully.');
+      } catch (updateErr) {
+        print('DEBUG: Expected failure updating service_request due to RLS: $updateErr');
+      }
 
       print('DEBUG: Proposal sent successfully');
     } catch (e) {

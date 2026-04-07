@@ -79,7 +79,14 @@ class _JobsScreenState extends ConsumerState<JobsScreen>
             ],
           ),
           _JobsList(
-            statuses: const ['ADVANCE_PAYMENT_DONE', 'advance_payment_done'],
+            statuses: const [
+              'ADVANCE_PAYMENT_DONE',
+              'advance_payment_done',
+              'ADVANCE_PAID',
+              'advance_paid',
+              'ADVANCE PAID',
+              'advance paid'
+            ],
           ),
           _JobsList(
             statuses: const ['COMPLETED', 'completed', 'SERVICE_COMPLETED'],
@@ -187,7 +194,9 @@ class _JobCardState extends ConsumerState<_JobCard> {
     if (status == 'WORKER_COMING' ||
         status == 'SERVICE_STARTED' ||
         status == 'IN_PROGRESS' ||
-        status == 'ADVANCE_PAYMENT_DONE') {
+        status == 'ADVANCE_PAYMENT_DONE' ||
+        status == 'ADVANCE_PAID' ||
+        status == 'ADVANCE PAID') {
       Navigator.push(
         context,
         MaterialPageRoute(
