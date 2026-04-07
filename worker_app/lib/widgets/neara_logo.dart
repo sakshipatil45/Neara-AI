@@ -1,1 +1,122 @@
-import 'package:flutter/material.dart';\n\nclass NearaLogo extends StatelessWidget {\n  final double? width;\n  final double? height;\n  final Color? color;\n  final bool showText;\n  final double? fontSize;\n  \n  const NearaLogo({\n    super.key,\n    this.width = 120,\n    this.height = 120,\n    this.color,\n    this.showText = false,\n    this.fontSize = 24,\n  });\n\n  @override\n  Widget build(BuildContext context) {\n    return Column(\n      mainAxisSize: MainAxisSize.min,\n      children: [\n        Image.asset(\n          'assets/images/neara_logo.png',\n          width: width,\n          height: height,\n          fit: BoxFit.contain,\n          color: color, // Tint the logo if color is provided\n          colorBlendMode: color != null ? BlendMode.srcIn : null,\n          errorBuilder: (context, error, stackTrace) {\n            // Fallback UI if logo image fails to load\n            return Container(\n              width: width,\n              height: height,\n              decoration: const BoxDecoration(\n                shape: BoxShape.circle,\n                gradient: LinearGradient(\n                  colors: [Color(0xFFFF6B35), Color(0xFFFF8E53)], // Worker app orange theme\n                ),\n              ),\n              child: const Center(\n                child: Text(\n                  'N',\n                  style: TextStyle(\n                    fontSize: 48,\n                    fontWeight: FontWeight.bold,\n                    color: Colors.white,\n                  ),\n                ),\n              ),\n            );\n          },\n        ),\n        if (showText) ..[\n          const SizedBox(height: 8),\n          Text(\n            'NEARA',\n            style: TextStyle(\n              fontSize: fontSize,\n              fontWeight: FontWeight.bold,\n              color: color ?? Theme.of(context).primaryColor,\n              letterSpacing: 2.0,\n            ),\n          ),\n          Text(\n            'WORKER',\n            style: TextStyle(\n              fontSize: (fontSize ?? 24) * 0.6,\n              fontWeight: FontWeight.w600,\n              color: (color ?? Theme.of(context).primaryColor).withOpacity(0.8),\n              letterSpacing: 1.5,\n            ),\n          ),\n        ],\n      ],\n    );\n  }\n}\n\n/// Compact logo for app bars and small spaces\nclass NearaLogoCompact extends StatelessWidget {\n  final double size;\n  final Color? color;\n  \n  const NearaLogoCompact({\n    super.key,\n    this.size = 32,\n    this.color,\n  });\n\n  @override\n  Widget build(BuildContext context) {\n    return NearaLogo(\n      width: size,\n      height: size,\n      color: color,\n      showText: false,\n    );\n  }\n}\n\n/// Large logo for splash screens and onboarding\nclass NearaLogoBrand extends StatelessWidget {\n  final Color? color;\n  \n  const NearaLogoBrand({\n    super.key,\n    this.color,\n  });\n\n  @override\n  Widget build(BuildContext context) {\n    return NearaLogo(\n      width: 200,\n      height: 200,\n      color: color,\n      showText: true,\n      fontSize: 32,\n    );\n  }\n}
+import 'package:flutter/material.dart';
+
+class NearaLogo extends StatelessWidget {
+  final double? width;
+  final double? height;
+  final Color? color;
+  final bool showText;
+  final double? fontSize;
+  
+  const NearaLogo({
+    super.key,
+    this.width = 120,
+    this.height = 120,
+    this.color,
+    this.showText = false,
+    this.fontSize = 24,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/images/neara_logo.png',
+          width: width,
+          height: height,
+          fit: BoxFit.contain,
+          color: color, // Tint the logo if color is provided
+          colorBlendMode: color != null ? BlendMode.srcIn : null,
+          errorBuilder: (context, error, stackTrace) {
+            // Fallback UI if logo image fails to load
+            return Container(
+              width: width,
+              height: height,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [Color(0xFFFF6B35), Color(0xFFFF8E53)], // Worker app orange theme
+                ),
+              ),
+              child: const Center(
+                child: Text(
+                  'N',
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+        if (showText) ...[
+          const SizedBox(height: 8),
+          Text(
+            'NEARA',
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+              color: color ?? Theme.of(context).primaryColor,
+              letterSpacing: 2.0,
+            ),
+          ),
+          Text(
+            'WORKER',
+            style: TextStyle(
+              fontSize: (fontSize ?? 24) * 0.6,
+              fontWeight: FontWeight.w600,
+              color: (color ?? Theme.of(context).primaryColor).withOpacity(0.8),
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Compact logo for app bars and small spaces
+class NearaLogoCompact extends StatelessWidget {
+  final double size;
+  final Color? color;
+  
+  const NearaLogoCompact({
+    super.key,
+    this.size = 32,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return NearaLogo(
+      width: size,
+      height: size,
+      color: color,
+      showText: false,
+    );
+  }
+}
+
+/// Large logo for splash screens and onboarding
+class NearaLogoBrand extends StatelessWidget {
+  final Color? color;
+  
+  const NearaLogoBrand({
+    super.key,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return NearaLogo(
+      width: 200,
+      height: 200,
+      color: color,
+      showText: true,
+      fontSize: 32,
+    );
+  }
+}

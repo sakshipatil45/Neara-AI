@@ -20,7 +20,7 @@ class LocationService {
   /// If true, the app must open system settings to let the user grant it.
   bool get permissionDeniedForever => _deniedForever;
 
-  static const String _fallbackLabel = 'DKTE, Ichalkaranji, Kolhapur';
+  static const String _fallbackLabel = 'D Y Patil College of Engineering and Technology Kolhapur';
 
   /// Returns a human-readable location label (e.g. "Koramangala, Bengaluru").
   /// Uses GPS → Nominatim reverse geocoding, falling back to a hardcoded
